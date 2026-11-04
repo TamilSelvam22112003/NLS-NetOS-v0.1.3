@@ -29,7 +29,14 @@ jobs:
           sudo groupadd --system frr || true
           sudo groupadd --system frrvty || true
           sudo useradd --system --gid frr --groups frrvty --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin frr || true
-          sudo cp -a build/rootfs/. /
+          # Merge only the staged /usr tree; do not overwrite runner-managed
+          # mount points such as /var/run or the /lib -> /usr/lib symlink.
+          sudo cp -a build/rootfs/usr/. /usr/
+          sudo install -d /etc/frr
+          sudo cp -a build/rootfs/etc/frr/. /etc/frr/
+          if [[ -f build/rootfs/lib/systemd/system/frr.service ]]; then
+            sudo install -D -m 0644 build/rootfs/lib/systemd/system/frr.service /lib/systemd/system/frr.service
+          fi
           sudo install -d -o frr -g frr -m 0750 /var/run/frr /var/log/frr
           sudo chown -R frr:frr /etc/frr
           sudo chown root:frr /etc/frr/daemons
