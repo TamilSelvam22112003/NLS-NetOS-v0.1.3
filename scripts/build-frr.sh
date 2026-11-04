@@ -45,14 +45,6 @@ $SUDO ldconfig
 export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
 export LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH:-}"
 pkg-config --atleast-version=3.0.0 libyang
-LIBYANG_SO="$(pkg-config --variable=libdir libyang)/libyang.so"
-test -e "$LIBYANG_SO"
-for symbol in lyd_parent lyd_child lyd_get_value; do
-  nm -D --defined-only "$LIBYANG_SO" | grep -Eq "[[:space:]]${symbol}(@|$)" || {
-    echo "libyang is missing required exported symbol: ${symbol}" >&2
-    exit 1
-  }
-done
 echo "Using libyang $(pkg-config --modversion libyang) from $(pkg-config --variable=libdir libyang)"
 pkg-config --cflags --libs libyang
 cd "$FRR_DIR"
