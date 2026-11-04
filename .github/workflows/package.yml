@@ -33,6 +33,35 @@ jobs:
           dpkg-deb --contents "$DEB" | grep -E 'usr/lib/frr/(zebra|ospfd|ospf6d)'
           dpkg-deb --contents "$DEB" | grep -E 'lib/systemd/system/frr.service'
 
+      - name: Install package in a clean Ubuntu 24.04 container
+        shell: bash
+        run: |
+          set -euxo pipefail
+          DEB="$(find build/packages -name '*.deb' -print -quit)"
+          test -n "$DEB"
+          docker run --rm --privileged \
+            -v "$PWD/build/packages:/packages:ro" \
+            ubuntu:24.04 bash -euxc '
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update
+              apt-get install -y ca-certificates
+              apt-get install -y /packages/*.deb
+              dpkg --audit
+              test -x /usr/lib/frr/zebra
+              test -x /usr/lib/frr/ospfd
+              test -x /usr/lib/frr/ospf6d
+              test -x /usr/bin/vtysh
+              ldd /usr/lib/frr/zebra
+              ldd /usr/lib/frr/ospfd
+              ldd /usr/lib/frr/ospf6d
+              /usr/lib/frr/zebra --version
+              /usr/lib/frr/ospfd --version
+              /usr/lib/frr/ospf6d --version
+              getent passwd frr
+              getent group frrvty
+              test -f /lib/systemd/system/frr.service
+            '
+
       - name: Upload Debian package
         uses: actions/upload-artifact@v4
         with:
