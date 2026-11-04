@@ -1,0 +1,41 @@
+name: NLS-NetOS Debian package
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout repository and FRR submodule
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build FRRouting
+        run: sudo ./scripts/build-frr.sh
+
+      - name: Build Debian package
+        run: ./packaging/build-deb.sh
+
+      - name: Validate package metadata and contents
+        run: |
+          DEB="$(find build/packages -name '*.deb' -print -quit)"
+          test -n "$DEB"
+          dpkg-deb --info "$DEB"
+          dpkg-deb --contents "$DEB" | grep -E 'usr/lib/frr/(zebra|ospfd|ospf6d)'
+          dpkg-deb --contents "$DEB" | grep -E 'lib/systemd/system/frr.service'
+
+      - name: Upload Debian package
+        uses: actions/upload-artifact@v4
+        with:
+          name: nls-netos-frr-deb
+          path: build/packages/*.deb
+          if-no-files-found: error
