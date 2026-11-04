@@ -17,7 +17,7 @@ Version: ${VERSION}
 Section: net
 Priority: optional
 Architecture: ${ARCH}
-Depends: libc6, iproute2, systemd
+Depends: libc6, iproute2, systemd, python3, python3-cryptography
 Maintainer: NLS-NetOS Maintainers
 Description: NLS-NetOS FRRouting runtime
  FRRouting binaries and service layout staged for the NLS-NetOS platform.
