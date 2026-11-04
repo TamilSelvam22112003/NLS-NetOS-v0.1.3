@@ -1,0 +1,76 @@
+name: FRRouting Build and Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-frr:
+    name: Build FRRouting on Linux
+    runs-on: [self-hosted, linux, x64]
+
+    steps:
+      - name: Check Linux Runner
+        run: |
+          echo "Runner is working"
+          hostname
+          uname -a
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git \
+            build-essential \
+            autoconf \
+            automake \
+            libtool \
+            make \
+            libreadline-dev \
+            texinfo \
+            pkg-config \
+            libpam0g-dev \
+            libjson-c-dev \
+            bison \
+            flex \
+            libc-ares-dev \
+            python3-dev \
+            python3-sphinx \
+            install-info \
+            libsnmp-dev \
+            perl \
+            libcap-dev \
+            libelf-dev \
+            libunwind-dev \
+            protobuf-c-compiler \
+            libprotobuf-c-dev \
+            cmake \
+            libpcre2-dev
+
+      - name: Download FRRouting
+        run: |
+          git clone --depth 1 --branch frr-10.7.1 \
+            https://github.com/FRRouting/frr.git
+          cd frr
+
+      - name: Build FRRouting
+        run: |
+          cd frr
+          ./bootstrap.sh
+          ./configure --disable-doc
+          make -j$(nproc)
+
+      - name: Verify Build
+        run: |
+          cd frr
+          echo "FRRouting build completed successfully"
+          ls -lh bgpd/bgpd zebra/zebra vtysh/vtysh
+
+      - name: Display Build Information
+        run: |
+          echo "FRRouting build test completed"
+          echo "Runner: $RUNNER_NAME"
+          echo "OS: $RUNNER_OS"
+          echo "Architecture: $RUNNER_ARCH"
