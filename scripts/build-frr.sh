@@ -32,6 +32,7 @@ fi
 cmake -S "$LIBYANG_SRC" -B "$LIBYANG_BUILD" \
   -D CMAKE_INSTALL_PREFIX=/usr/local \
   -D CMAKE_INSTALL_LIBDIR=lib \
+  -D ENABLE_LYD_PRIV=ON \
   -D CMAKE_BUILD_TYPE=Release
 cmake --build "$LIBYANG_BUILD" --parallel "$JOBS"
 $SUDO cmake --install "$LIBYANG_BUILD"
@@ -39,6 +40,8 @@ $SUDO ldconfig
 export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
 export LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH:-}"
 pkg-config --atleast-version=2.1.128 libyang
+echo "Using libyang $(pkg-config --modversion libyang) from $(pkg-config --variable=libdir libyang)"
+pkg-config --cflags --libs libyang
 cd "$FRR_DIR"
 git submodule update --init --recursive
 ./bootstrap.sh
@@ -56,6 +59,11 @@ CONFIGURE_ARGS=(
   --enable-multipath=64
 )
 ./configure "${CONFIGURE_ARGS[@]}"
+# Fail early if configure did not select the intended libyang installation.
+grep -E '^(LIBYANG_(CFLAGS|LIBS)|pkg_cv_LIBYANG_)' config.log || {
+  echo "Could not confirm libyang link flags in FRR config.log" >&2
+  exit 1
+}
 make -j"$JOBS"
 $SUDO make DESTDIR="$STAGE_DIR" install
 
