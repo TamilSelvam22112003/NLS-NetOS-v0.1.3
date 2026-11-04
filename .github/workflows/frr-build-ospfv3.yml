@@ -61,6 +61,11 @@ jobs:
         run: |
           cd third_party/frr && sudo -E python3 -m pytest -v -s tests/topotests/ospf6_topo1/test_ospf6_topo1.py
 
+      - name: Run NLS-NetOS three-router OSPFv3 regression test
+        run: |
+          cd third_party/frr/tests/topotests
+          sudo -E python3 -m pytest -v -s ../../../../tests/topotests/nls_ospfv3_three_router/test_nls_ospfv3_three_router.py
+
       - name: Upload OSPFv3 test logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -69,4 +74,5 @@ jobs:
           path: |
             /tmp/topotests/
             third_party/frr/tests/topotests/ospf6_topo1/
+            tests/topotests/nls_ospfv3_three_router/
           if-no-files-found: ignore
