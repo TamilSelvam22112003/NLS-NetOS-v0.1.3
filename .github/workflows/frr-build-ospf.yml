@@ -37,8 +37,9 @@ jobs:
           test -x /usr/lib/frr/zebra
           test -x /usr/lib/frr/ospfd
           test -x /usr/bin/vtysh
-          /usr/lib/frr/zebra --version
-          /usr/lib/frr/ospfd --version
+          sudo ldconfig
+          LD_LIBRARY_PATH="/usr/lib:/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" /usr/lib/frr/zebra --version
+          LD_LIBRARY_PATH="/usr/lib:/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" /usr/lib/frr/ospfd --version
 
       - name: Install FRR topotest Python and networking dependencies
         run: |
