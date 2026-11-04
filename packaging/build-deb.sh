@@ -28,6 +28,7 @@ set -e
 getent group frr >/dev/null || addgroup --system frr
 getent group frrvty >/dev/null || addgroup --system frrvty
 id frr >/dev/null 2>&1 || adduser --system --ingroup frr --home /nonexistent --no-create-home --shell /usr/sbin/nologin frr
+adduser frr frrvty >/dev/null 2>&1 || true
 install -d -o frr -g frr -m 0750 /var/run/frr /var/log/frr
 if [ -d /etc/frr ]; then chown -R frr:frr /etc/frr; fi
 if [ -f /etc/frr/daemons ]; then chown root:frr /etc/frr/daemons; chmod 0640 /etc/frr/daemons; fi
