@@ -17,7 +17,7 @@ Version: ${VERSION}
 Section: net
 Priority: optional
 Architecture: ${ARCH}
-Depends: libc6, iproute2, systemd, python3, python3-cryptography
+Depends: libc6, libpcre2-8-0, iproute2, systemd, python3, python3-cryptography
 Maintainer: NLS-NetOS Maintainers
 Description: NLS-NetOS FRRouting runtime
  FRRouting binaries and service layout staged for the NLS-NetOS platform.
@@ -32,6 +32,7 @@ adduser frr frrvty >/dev/null 2>&1 || true
 install -d -o frr -g frr -m 0750 /var/run/frr /var/log/frr
 if [ -d /etc/frr ]; then chown -R frr:frr /etc/frr; fi
 if [ -f /etc/frr/daemons ]; then chown root:frr /etc/frr/daemons; chmod 0640 /etc/frr/daemons; fi
+if command -v ldconfig >/dev/null 2>&1; then ldconfig; fi
 if command -v systemctl >/dev/null 2>&1; then systemctl daemon-reload || true; fi
 exit 0
 POSTINST
@@ -42,6 +43,7 @@ if command -v systemctl >/dev/null 2>&1; then
   systemctl stop frr.service >/dev/null 2>&1 || true
   systemctl disable frr.service >/dev/null 2>&1 || true
 fi
+if command -v ldconfig >/dev/null 2>&1; then ldconfig; fi
 exit 0
 PRERM
 chmod 0755 "$PKG_ROOT/DEBIAN/postinst" "$PKG_ROOT/DEBIAN/prerm"
