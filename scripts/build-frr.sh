@@ -4,6 +4,7 @@ ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 FRR_DIR="${ROOT_DIR}/third_party/frr"
 LIBYANG_SRC="${ROOT_DIR}/build/libyang-src"
 LIBYANG_BUILD="${ROOT_DIR}/build/libyang-build"
+LIBYANG_VERSION="3.13.6"
 STAGE_DIR="${ROOT_DIR}/build/rootfs"
 JOBS="${JOBS:-$(nproc)}"
 
@@ -24,22 +25,34 @@ $SUDO apt-get install -y --no-install-recommends \
  protobuf-c-compiler libgrpc-dev libgrpc++-dev libprotobuf-dev
 
 mkdir -p "$LIBYANG_SRC" "$LIBYANG_BUILD" "$STAGE_DIR"
-# Ubuntu 24.04 provides libyang 2.1.30, below the minimum 2.1.128 required
-# by current FRR. Build the FRR-documented 2.1.148 release into /usr/local.
+# FRR 10.9-dev supports libyang 3 and documents v3.13.6 as its source-build
+# baseline. libyang 2.1.148 no longer accepts ENABLE_LYD_PRIV (the option is
+# ignored), which left FRR linking against missing private API symbols.
 if [[ ! -f "$LIBYANG_SRC/CMakeLists.txt" ]]; then
-  git clone --depth 1 --branch v2.1.148 https://github.com/CESNET/libyang.git "$LIBYANG_SRC"
+  git clone --depth 1 --branch "v${LIBYANG_VERSION}" https://github.com/CESNET/libyang.git "$LIBYANG_SRC"
+else
+  git -C "$LIBYANG_SRC" fetch --depth 1 origin "refs/tags/v${LIBYANG_VERSION}:refs/tags/v${LIBYANG_VERSION}"
+  git -C "$LIBYANG_SRC" checkout --force "v${LIBYANG_VERSION}"
 fi
+rm -rf "$LIBYANG_BUILD"
 cmake -S "$LIBYANG_SRC" -B "$LIBYANG_BUILD" \
   -D CMAKE_INSTALL_PREFIX=/usr/local \
   -D CMAKE_INSTALL_LIBDIR=lib \
-  -D ENABLE_LYD_PRIV=ON \
   -D CMAKE_BUILD_TYPE=Release
 cmake --build "$LIBYANG_BUILD" --parallel "$JOBS"
 $SUDO cmake --install "$LIBYANG_BUILD"
 $SUDO ldconfig
 export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
 export LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH:-}"
-pkg-config --atleast-version=2.1.128 libyang
+pkg-config --atleast-version=3.0.0 libyang
+LIBYANG_SO="$(pkg-config --variable=libdir libyang)/libyang.so"
+test -e "$LIBYANG_SO"
+for symbol in lyd_parent lyd_child lyd_get_value; do
+  nm -D --defined-only "$LIBYANG_SO" | grep -Eq "[[:space:]]${symbol}(@|$)" || {
+    echo "libyang is missing required exported symbol: ${symbol}" >&2
+    exit 1
+  }
+done
 echo "Using libyang $(pkg-config --modversion libyang) from $(pkg-config --variable=libdir libyang)"
 pkg-config --cflags --libs libyang
 cd "$FRR_DIR"
@@ -85,6 +98,6 @@ install -m 0644 "$ROOT_DIR/lib/systemd/system/frr.service" "$STAGE_DIR/lib/syste
 # Bundle the compatible libyang runtime because Ubuntu 24.04's packaged
 # 2.1.30 library is too old for this FRR build.
 install -d "$STAGE_DIR/usr/lib"
-cp -a /usr/local/lib/libyang.so.2* "$STAGE_DIR/usr/lib/"
+cp -a /usr/local/lib/libyang.so.3* "$STAGE_DIR/usr/lib/"
 echo "FRR source: $(git -C "$FRR_DIR" rev-parse HEAD)"
 echo "FRR build and staged installation: $STAGE_DIR"
