@@ -1,93 +1,449 @@
-name: FRR build and OSPFv3 integration
+```yaml
+name: FRR Build and OSPFv3 Integration
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+
   pull_request:
+    branches:
+      - main
+
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: frr-ospfv3-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+
   build-and-ospfv3:
+
+    name: Build FRR and Test NLS OSPFv3
+
     runs-on: ubuntu-24.04
+
     timeout-minutes: 120
+
+    env:
+      FRR_DIR: third_party/frr
+      ROOTFS: build/rootfs
+      LD_LIBRARY_PATH: /usr/lib:/usr/local/lib
+
     steps:
-      - name: Checkout NLS-NetOS and FRR submodule
+
+      # ==========================================================
+      # 1. CHECKOUT NLS-NETOS AND FRR SUBMODULE
+      # ==========================================================
+
+      - name: Checkout NLS-NetOS and FRR Submodule
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          fetch-depth: 0
 
-      - name: Verify pinned FRR checkout
+      # ==========================================================
+      # 2. VERIFY FRR SUBMODULE
+      # ==========================================================
+
+      - name: Verify Pinned FRR Checkout
+        shell: bash
         run: |
-          test -f third_party/frr/bootstrap.sh
-          git -C third_party/frr rev-parse --verify HEAD
-          git -C third_party/frr remote get-url origin
+          set -euo pipefail
 
-      - name: Build upstream FRRouting from source
-        run: sudo ./scripts/build-frr.sh
+          test -f "$FRR_DIR/bootstrap.sh"
 
-      - name: Verify OSPFv3 build products
+          echo "FRRouting commit:"
+          git -C "$FRR_DIR" rev-parse HEAD
+
+          echo "FRRouting remote:"
+          git -C "$FRR_DIR" remote get-url origin
+
+          echo "FRRouting submodule status:"
+          git submodule status
+
+      # ==========================================================
+      # 3. VERIFY BUILD SCRIPT
+      # ==========================================================
+
+      - name: Verify FRR Build Script
         run: |
-          test -x build/rootfs/usr/lib/frr/zebra
-          test -x build/rootfs/usr/lib/frr/ospf6d
-          test -x build/rootfs/usr/bin/vtysh
-          LD_LIBRARY_PATH="$PWD/build/rootfs/usr/lib:/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" build/rootfs/usr/lib/frr/ospf6d --version
+          set -euo pipefail
 
-      - name: Install FRR into ephemeral CI runner
+          test -f scripts/build-frr.sh
+
+          chmod +x scripts/build-frr.sh
+
+          echo "FRR build script found."
+
+      # ==========================================================
+      # 4. BUILD UPSTREAM FRROUTING
+      # ==========================================================
+
+      - name: Build Upstream FRRouting
+        run: |
+          set -euo pipefail
+
+          sudo ./scripts/build-frr.sh
+
+          echo "FRRouting build completed."
+
+      # ==========================================================
+      # 5. VERIFY BUILD PRODUCTS
+      # ==========================================================
+
+      - name: Verify OSPFv3 Build Products
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -x "$ROOTFS/usr/lib/frr/zebra"
+          test -x "$ROOTFS/usr/lib/frr/ospf6d"
+          test -x "$ROOTFS/usr/bin/vtysh"
+
+          echo "Checking Zebra:"
+          "$ROOTFS/usr/lib/frr/zebra" --version
+
+          echo "Checking OSPFv3:"
+          LD_LIBRARY_PATH="$ROOTFS/usr/lib:/usr/local/lib" \
+            "$ROOTFS/usr/lib/frr/ospf6d" --version
+
+          echo "Checking VTYSH:"
+          "$ROOTFS/usr/bin/vtysh" --version
+
+          echo "All required FRR binaries exist."
+
+      # ==========================================================
+      # 6. INSTALL FRR INTO EPHEMERAL CI RUNNER
+      # ==========================================================
+
+      - name: Install FRR into CI Runner
         shell: bash
         run: |
           set -euxo pipefail
+
           sudo groupadd --system frr || true
           sudo groupadd --system frrvty || true
-          sudo useradd --system --gid frr --groups frrvty --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin frr || true
-          # Merge only the staged /usr tree; do not overwrite runner-managed
-          # mount points such as /var/run or the /lib -> /usr/lib symlink.
-          sudo cp -a build/rootfs/usr/. /usr/
-          sudo install -d /etc/frr
-          sudo cp -a build/rootfs/etc/frr/. /etc/frr/
-          if [[ -f build/rootfs/lib/systemd/system/frr.service ]]; then
-            sudo install -D -m 0644 build/rootfs/lib/systemd/system/frr.service /lib/systemd/system/frr.service
+
+          sudo useradd \
+            --system \
+            --gid frr \
+            --groups frrvty \
+            --home-dir /nonexistent \
+            --no-create-home \
+            --shell /usr/sbin/nologin \
+            frr || true
+
+          # Install staged /usr tree.
+          # Preserve runner-managed mount points.
+
+          sudo cp -a "$ROOTFS/usr/." /usr/
+
+          # Install FRR configuration.
+
+          if [ -d "$ROOTFS/etc/frr" ]; then
+            sudo install -d /etc/frr
+            sudo cp -a "$ROOTFS/etc/frr/." /etc/frr/
           fi
-          sudo install -d -o frr -g frr -m 0750 /var/run/frr /var/log/frr
-          sudo chown -R frr:frr /etc/frr
-          sudo chown root:frr /etc/frr/daemons
-          sudo chmod 0640 /etc/frr/daemons
+
+          # Install systemd service if available.
+
+          if [ -f "$ROOTFS/lib/systemd/system/frr.service" ]; then
+            sudo install -D -m 0644 \
+              "$ROOTFS/lib/systemd/system/frr.service" \
+              /lib/systemd/system/frr.service
+          elif [ -f "$ROOTFS/usr/lib/systemd/system/frr.service" ]; then
+            sudo install -D -m 0644 \
+              "$ROOTFS/usr/lib/systemd/system/frr.service" \
+              /usr/lib/systemd/system/frr.service
+          fi
+
+          # Create runtime directories.
+
+          sudo install -d \
+            -o frr -g frr -m 0750 \
+            /var/run/frr \
+            /var/log/frr
+
+          # Set configuration permissions.
+
+          if [ -f /etc/frr/daemons ]; then
+            sudo chown -R frr:frr /etc/frr
+
+            sudo chown root:frr /etc/frr/daemons
+
+            sudo chmod 0640 /etc/frr/daemons
+          fi
+
           sudo ldconfig
+
+          # Verify installed binaries.
+
           test -x /usr/lib/frr/zebra
           test -x /usr/lib/frr/ospf6d
           test -x /usr/bin/vtysh
 
-      - name: Install topotest dependencies
+          echo "FRR installed successfully."
+
+      # ==========================================================
+      # 7. INSTALL TOPOTEST DEPENDENCIES
+      # ==========================================================
+
+      - name: Install Topotest Dependencies
+        shell: bash
         run: |
+          set -euo pipefail
+
           sudo apt-get update
-          sudo apt-get install -y gdb exabgp iproute2 iputils-ping iptables tcpdump
-          python3 -m pip install --break-system-packages pytest pytest-xdist munet scapy psutil "exabgp>=4.2.11,<5" "protobuf<4"
 
-      - name: Run upstream OSPFv3 topology integration test
+          sudo apt-get install -y \
+            git \
+            build-essential \
+            gdb \
+            exabgp \
+            iproute2 \
+            iputils-ping \
+            iptables \
+            tcpdump \
+            net-tools \
+            iputils-tracepath \
+            python3-dev \
+            python3-pip \
+            python3-venv \
+            libcap-dev \
+            libjson-c-dev \
+            libyang-dev \
+            libprotobuf-c-dev \
+            protobuf-c-compiler
+
+          python3 -m venv \
+            --system-site-packages \
+            "$RUNNER_TEMP/frr-topotest-venv"
+
+          source "$RUNNER_TEMP/frr-topotest-venv/bin/activate"
+
+          python -m pip install --upgrade pip setuptools wheel
+
+          python -m pip install \
+            pytest \
+            pytest-xdist \
+            munet \
+            scapy \
+            psutil \
+            pyyaml \
+            xmltodict \
+            "exabgp>=4.2.11,<5" \
+            "protobuf<4"
+
+          echo "Topotest dependencies installed."
+
+      # ==========================================================
+      # 8. VERIFY PYTEST CONFIGURATION
+      # ==========================================================
+
+      - name: Verify FRR Pytest Configuration
+        shell: bash
         run: |
-          export LD_LIBRARY_PATH="/usr/lib:/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-          cd third_party/frr && sudo -E env LD_LIBRARY_PATH="$LD_LIBRARY_PATH" python3 -m pytest -v -s tests/topotests/ospf6_topo1/test_ospf6_topo1.py
+          set -euo pipefail
 
-      - name: Run NLS-NetOS three-router OSPFv3 regression test
+          echo "FRR pytest files:"
+
+          find "$FRR_DIR/tests/topotests" \
+            -maxdepth 2 \
+            \( -name pytest.ini -o -name conftest.py \) \
+            -print
+
+          test -f "$FRR_DIR/tests/topotests/pytest.ini"
+
+          echo "FRR pytest configuration verified."
+
+      # ==========================================================
+      # 9. VERIFY NLS TEST FILES
+      # ==========================================================
+
+      - name: Verify NLS OSPFv3 Test Files
+        shell: bash
         run: |
-          # Run from the FRR repository root so its pytest plugin and
-          # conftest.py register the Topogen/Topotest pytest configuration.
-          cd third_party/frr
-          sudo -E env LD_LIBRARY_PATH="/usr/lib:/usr/local/lib" python3 -m pytest -v -s ../../tests/topotests/nls_ospfv3_three_router/test_nls_ospfv3_three_router.py
+          set -euo pipefail
 
-      - name: Make OSPFv3 test logs readable
+          NLS_TEST_DIR="tests/topotests/nls_ospfv3_three_router"
+
+          test -f "$NLS_TEST_DIR/test_nls_ospfv3_three_router.py"
+
+          echo "NLS topology files:"
+
+          find "$NLS_TEST_DIR" -maxdepth 3 -type f
+
+      # ==========================================================
+      # 10. VERIFY NETWORK NAMESPACE SUPPORT
+      # ==========================================================
+
+      - name: Verify Linux Network Namespace Support
+        run: |
+          set -euo pipefail
+
+          sudo ip netns add nls-ci-check
+
+          sudo ip netns exec nls-ci-check ip link show
+
+          sudo ip netns delete nls-ci-check
+
+          echo "Network namespace support verified."
+
+      # ==========================================================
+      # 11. RUN UPSTREAM OSPFV3 TOPOLOGY TEST
+      # ==========================================================
+
+      - name: Run Upstream FRR OSPFv3 Topology Test
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          source "$RUNNER_TEMP/frr-topotest-venv/bin/activate"
+
+          cd "$FRR_DIR/tests/topotests"
+
+          sudo -E env \
+            PATH="$PATH" \
+            LD_LIBRARY_PATH="/usr/lib:/usr/local/lib" \
+            python -m pytest \
+              -c pytest.ini \
+              -v \
+              -s \
+              ospf6_topo1/test_ospf6_topo1.py \
+              --junitxml="$RUNNER_TEMP/frr-ospfv3-results.xml"
+
+          echo "Upstream OSPFv3 tests passed."
+
+      # ==========================================================
+      # 12. RUN NLS THREE-ROUTER OSPFV3 TESTS
+      # ==========================================================
+
+      - name: Run NLS Three-Router OSPFv3 Regression Test
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          source "$RUNNER_TEMP/frr-topotest-venv/bin/activate"
+
+          FRR_TOPOTESTS="$GITHUB_WORKSPACE/$FRR_DIR/tests/topotests"
+
+          NLS_TEST="$GITHUB_WORKSPACE/tests/topotests/nls_ospfv3_three_router/test_nls_ospfv3_three_router.py"
+
+          cd "$FRR_TOPOTESTS"
+
+          echo "FRR Topotests directory:"
+          pwd
+
+          echo "NLS test module:"
+          echo "$NLS_TEST"
+
+          test -f pytest.ini
+          test -f conftest.py
+          test -f "$NLS_TEST"
+
+          sudo -E env \
+            PATH="$PATH" \
+            LD_LIBRARY_PATH="/usr/lib:/usr/local/lib" \
+            PYTHONPATH="$FRR_TOPOTESTS:$FRR_TOPOTESTS/lib:$PYTHONPATH" \
+            python -m pytest \
+              -c "$FRR_TOPOTESTS/pytest.ini" \
+              -v \
+              -s \
+              "$NLS_TEST" \
+              --junitxml="$RUNNER_TEMP/nls-ospfv3-results.xml"
+
+          echo "NLS three-router OSPFv3 tests passed."
+
+      # ==========================================================
+      # 13. MAKE TEST LOGS READABLE
+      # ==========================================================
+
+      - name: Make OSPFv3 Test Logs Readable
         if: always()
-        run: sudo chmod -R a+rX /tmp/topotests third_party/frr/tests/topotests/ospf6_topo1 tests/topotests/nls_ospfv3_three_router 2>/dev/null || true
+        run: |
+          sudo chmod -R a+rX \
+            /tmp/topotests \
+            third_party/frr/tests/topotests/ospf6_topo1 \
+            tests/topotests/nls_ospfv3_three_router \
+            2>/dev/null || true
 
-      - name: Upload OSPFv3 test logs
+      # ==========================================================
+      # 14. COLLECT TEST RESULTS
+      # ==========================================================
+
+      - name: Collect OSPFv3 Test Results
+        if: always()
+        run: |
+          mkdir -p test-artifacts
+
+          if [ -d /tmp/topotests ]; then
+            sudo cp -a /tmp/topotests \
+              test-artifacts/
+          fi
+
+          if [ -f "$RUNNER_TEMP/frr-ospfv3-results.xml" ]; then
+            cp "$RUNNER_TEMP/frr-ospfv3-results.xml" \
+              test-artifacts/
+          fi
+
+          if [ -f "$RUNNER_TEMP/nls-ospfv3-results.xml" ]; then
+            cp "$RUNNER_TEMP/nls-ospfv3-results.xml" \
+              test-artifacts/
+          fi
+
+          sudo chown -R "$(id -u):$(id -g)" \
+            test-artifacts || true
+
+      # ==========================================================
+      # 15. UPLOAD OSPFV3 TEST LOGS
+      # ==========================================================
+
+      - name: Upload OSPFv3 Test Logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: frr-ospfv3-topotest-logs
-          path: |
-            /tmp/topotests/
-            third_party/frr/tests/topotests/ospf6_topo1/
-            tests/topotests/nls_ospfv3_three_router/
-          if-no-files-found: ignore
+          path: test-artifacts/
+          if-no-files-found: warn
+          retention-days: 14
+
+      # ==========================================================
+      # 16. FINAL BUILD SUMMARY
+      # ==========================================================
+
+      - name: Display Build Summary
+        if: always()
+        run: |
+          {
+            echo "# FRRouting and NLS OSPFv3 Build Report"
+            echo ""
+            echo "Repository: $GITHUB_REPOSITORY"
+            echo ""
+            echo "Branch: $GITHUB_REF_NAME"
+            echo ""
+            echo "Commit: $GITHUB_SHA"
+            echo ""
+            echo "Runner: $RUNNER_OS"
+            echo ""
+            echo "Architecture: $RUNNER_ARCH"
+            echo ""
+            echo "FRR source: third_party/frr"
+            echo ""
+            echo "## Tested Components"
+            echo ""
+            echo "- FRRouting source compilation"
+            echo "- Zebra"
+            echo "- OSPFv3 daemon"
+            echo "- VTYSH"
+            echo "- Linux network namespaces"
+            echo "- Upstream OSPFv3 topology"
+            echo "- NLS three-router OSPFv3 regression"
+            echo "- IPv6 route installation"
+            echo "- Link failure and recovery"
+          } >> "$GITHUB_STEP_SUMMARY"
+```
