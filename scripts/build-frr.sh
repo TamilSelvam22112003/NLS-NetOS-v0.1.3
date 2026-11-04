@@ -31,6 +31,7 @@ if [[ ! -f "$LIBYANG_SRC/CMakeLists.txt" ]]; then
 fi
 cmake -S "$LIBYANG_SRC" -B "$LIBYANG_BUILD" \
   -D CMAKE_INSTALL_PREFIX=/usr/local \
+  -D CMAKE_INSTALL_LIBDIR=lib \
   -D CMAKE_BUILD_TYPE=Release
 cmake --build "$LIBYANG_BUILD" --parallel "$JOBS"
 $SUDO cmake --install "$LIBYANG_BUILD"
