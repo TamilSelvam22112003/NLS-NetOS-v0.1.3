@@ -1,0 +1,11 @@
+! Example only: enable ospf6d in /etc/frr/daemons before using.
+! Replace interface names and IPv6 prefixes for the lab topology.
+!
+! router ospf6
+!  router-id 10.0.0.1
+!
+! interface eth1
+!  ipv6 ospf6 area 0.0.0.0
+!  ipv6 ospf6 cost 10
+!
+! Do not copy this example unchanged onto a production router.
