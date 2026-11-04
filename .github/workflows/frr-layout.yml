@@ -1,0 +1,20 @@
+name: FRR layout validation
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate layout and scripts
+        run: |
+          set -eu
+          test -f etc/frr/daemons
+          test -f etc/frr/zebra.conf
+          test -f lib/systemd/system/frr.service
+          bash -n scripts/build-frr.sh
+          bash -n scripts/install-frr.sh
+          bash -n scripts/clean-frr-build.sh
+          echo "FRR layout and shell syntax checks passed."

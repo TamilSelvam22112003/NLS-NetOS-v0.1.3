@@ -1,0 +1,22 @@
+[Unit]
+Description=FRRouting routing suite
+Documentation=https://docs.frrouting.org/
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=forking
+User=frr
+Group=frr
+RuntimeDirectory=frr
+RuntimeDirectoryMode=0750
+ExecStart=/usr/lib/frr/frrinit.sh start
+ExecStop=/usr/lib/frr/frrinit.sh stop
+ExecReload=/usr/lib/frr/frrinit.sh reload
+PIDFile=/var/run/frr/frrinit.pid
+Restart=on-failure
+RestartSec=2
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
