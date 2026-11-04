@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from cryptography import x509
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.x509.oid import NameOID, ObjectIdentifier
@@ -147,7 +148,7 @@ def verify_router_certificate(
         identity = cert.extensions.get_extension_for_oid(ROUTER_IDENTITY_OID).value.value.decode("utf-8")
         san = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
         uri = san.get_values_for_type(x509.UniformResourceIdentifier)
-    except (ValueError, x509.ExtensionNotFound, UnicodeDecodeError):
+    except (InvalidSignature, ValueError, x509.ExtensionNotFound, UnicodeDecodeError):
         return False
     instant = now or datetime.now(UTC)
     before = cert.not_valid_before_utc if hasattr(cert, "not_valid_before_utc") else cert.not_valid_before.replace(tzinfo=UTC)
