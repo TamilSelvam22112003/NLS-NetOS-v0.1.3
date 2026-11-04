@@ -23,7 +23,7 @@ jobs:
         run: sudo ./scripts/build-frr.sh
 
       - name: Build Debian package
-        run: bash ./packaging/build-deb.sh
+        run: sudo bash ./packaging/build-deb.sh
 
       - name: Validate package metadata and contents
         run: |
