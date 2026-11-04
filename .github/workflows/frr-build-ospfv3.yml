@@ -72,8 +72,10 @@ jobs:
 
       - name: Run NLS-NetOS three-router OSPFv3 regression test
         run: |
-          cd third_party/frr/tests/topotests
-          sudo -E env LD_LIBRARY_PATH="/usr/lib:/usr/local/lib" python3 -m pytest -v -s ../../../../tests/topotests/nls_ospfv3_three_router/test_nls_ospfv3_three_router.py
+          # Run from the FRR repository root so its pytest plugin and
+          # conftest.py register the Topogen/Topotest pytest configuration.
+          cd third_party/frr
+          sudo -E env LD_LIBRARY_PATH="/usr/lib:/usr/local/lib" python3 -m pytest -v -s ../../tests/topotests/nls_ospfv3_three_router/test_nls_ospfv3_three_router.py
 
       - name: Make OSPFv3 test logs readable
         if: always()
