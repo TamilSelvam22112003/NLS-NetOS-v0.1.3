@@ -52,7 +52,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gdb exabgp iproute2 iputils-ping iptables tcpdump
-          python3 -m pip install --break-system-packages pytest pytest-xdist munet scapy psutil "protobuf<4"
+          python3 -m pip install --break-system-packages pytest pytest-xdist munet scapy psutil exabgp "protobuf<4"
 
       - name: Run upstream OSPF topology integration test
         run: |
