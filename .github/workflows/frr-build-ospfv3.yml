@@ -1,0 +1,72 @@
+name: FRR build and OSPFv3 integration
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-ospfv3:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout NLS-NetOS and FRR submodule
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Verify pinned FRR checkout
+        run: |
+          test -f third_party/frr/bootstrap.sh
+          git -C third_party/frr rev-parse --verify HEAD
+          git -C third_party/frr remote get-url origin
+
+      - name: Build upstream FRRouting from source
+        run: sudo ./scripts/build-frr.sh
+
+      - name: Verify OSPFv3 build products
+        run: |
+          test -x build/rootfs/usr/lib/frr/zebra
+          test -x build/rootfs/usr/lib/frr/ospf6d
+          test -x build/rootfs/usr/bin/vtysh
+          build/rootfs/usr/lib/frr/ospf6d --version
+
+      - name: Install FRR into ephemeral CI runner
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo groupadd --system frr || true
+          sudo groupadd --system frrvty || true
+          sudo useradd --system --gid frr --groups frrvty --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin frr || true
+          sudo cp -a build/rootfs/. /
+          sudo install -d -o frr -g frr -m 0750 /var/run/frr /var/log/frr
+          sudo chown -R frr:frr /etc/frr
+          sudo chown root:frr /etc/frr/daemons
+          sudo chmod 0640 /etc/frr/daemons
+          test -x /usr/lib/frr/zebra
+          test -x /usr/lib/frr/ospf6d
+          test -x /usr/bin/vtysh
+
+      - name: Install topotest dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y iproute2 iputils-ping iptables tcpdump
+          python3 -m pip install --break-system-packages pytest pytest-xdist munet scapy psutil "protobuf<4"
+
+      - name: Run upstream OSPFv3 topology integration test
+        run: |
+          sudo -E python3 -m pytest -v -s tests/topotests/ospf6_topo1/test_ospf6_topo1.py
+
+      - name: Upload OSPFv3 test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frr-ospfv3-topotest-logs
+          path: |
+            /tmp/topotests/
+            third_party/frr/tests/topotests/ospf6_topo1/
+          if-no-files-found: ignore
