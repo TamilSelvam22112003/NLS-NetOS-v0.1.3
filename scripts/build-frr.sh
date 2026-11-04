@@ -17,7 +17,7 @@ fi
 export DEBIAN_FRONTEND=noninteractive
 $SUDO apt-get update
 $SUDO apt-get install -y --no-install-recommends \
- git ca-certificates build-essential autoconf automake libtool pkg-config cmake \
+ git ca-certificates build-essential autoconf automake libtool pkg-config cmake gcc-13-plugin-dev \
  make gcc g++ bison flex python3 python3-dev python3-pip python3-setuptools \
  libreadline-dev libncurses-dev libjson-c-dev libcap-dev libpam0g-dev \
  libsystemd-dev libsnmp-dev libelf-dev libunwind-dev libyang2-dev \
