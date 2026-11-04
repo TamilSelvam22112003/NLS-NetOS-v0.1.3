@@ -20,10 +20,14 @@ $SUDO apt-get install -y --no-install-recommends \
  git ca-certificates build-essential autoconf automake libtool pkg-config cmake gcc-13-plugin-dev \
  make gcc g++ bison flex python3 python3-dev python3-pip python3-setuptools \
  libreadline-dev libncurses-dev libjson-c-dev libcap-dev libpam0g-dev \
- libsystemd-dev libsnmp-dev libelf-dev libunwind-dev libyang2-dev \
+ libsystemd-dev libsnmp-dev libelf-dev libunwind-dev \
  libpcre2-dev libxml2-dev libsqlite3-dev libzmq3-dev libprotobuf-c-dev \
  protobuf-c-compiler libgrpc-dev libgrpc++-dev libprotobuf-dev
 
+# Do not install Ubuntu's libyang 2 development headers: FRR is built against
+# the explicitly pinned libyang 3 source below. Mixing libyang 2 and 3 in one
+# FRR build creates incompatible direct DT_NEEDED entries and breaks NB startup.
+$SUDO apt-get purge -y libyang2-dev || true
 mkdir -p "$LIBYANG_SRC" "$LIBYANG_BUILD" "$STAGE_DIR"
 # FRR 10.9-dev supports libyang 3 and documents v3.13.6 as its source-build
 # baseline. libyang 2.1.148 no longer accepts ENABLE_LYD_PRIV (the option is
@@ -42,7 +46,9 @@ cmake -S "$LIBYANG_SRC" -B "$LIBYANG_BUILD" \
 cmake --build "$LIBYANG_BUILD" --parallel "$JOBS"
 $SUDO cmake --install "$LIBYANG_BUILD"
 $SUDO ldconfig
-export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/lib/x86_64-linux-gnu/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+export CPPFLAGS="-I/usr/local/include${CPPFLAGS:+ $CPPFLAGS}"
+export LDFLAGS="-L/usr/local/lib -Wl,-rpath,/usr/local/lib${LDFLAGS:+ $LDFLAGS}"
 export LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH:-}"
 pkg-config --atleast-version=3.0.0 libyang
 echo "Using libyang $(pkg-config --modversion libyang) from $(pkg-config --variable=libdir libyang)"
@@ -71,6 +77,18 @@ grep -E '^(LIBYANG_(CFLAGS|LIBS)|pkg_cv_LIBYANG_)' config.log || {
 }
 make -j"$JOBS"
 $SUDO make DESTDIR="$STAGE_DIR" install
+# Reject mixed libyang ABIs before packaging or running topotests.
+for daemon in "$STAGE_DIR/usr/lib/frr"/{zebra,ospfd,ospf6d,mgmtd}; do
+  [[ -x "$daemon" ]] || continue
+  if readelf -d "$daemon" | grep -q 'libyang.so.2'; then
+    echo "ERROR: $(basename "$daemon") links against libyang 2; expected libyang 3 only" >&2
+    exit 1
+  fi
+done
+if readelf -d "$STAGE_DIR/usr/lib/libfrr.so.0" 2>/dev/null | grep -q 'libyang.so.2'; then
+  echo "ERROR: libfrr links against incompatible libyang 2" >&2
+  exit 1
+fi
 
 mkdir -p "$STAGE_DIR/etc/frr" "$STAGE_DIR/usr/sbin/frr" \
   "$STAGE_DIR/usr/lib/frr" "$STAGE_DIR/usr/share/doc/frr" \
