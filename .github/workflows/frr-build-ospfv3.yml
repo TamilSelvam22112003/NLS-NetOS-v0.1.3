@@ -33,7 +33,7 @@ jobs:
           test -x build/rootfs/usr/lib/frr/zebra
           test -x build/rootfs/usr/lib/frr/ospf6d
           test -x build/rootfs/usr/bin/vtysh
-          build/rootfs/usr/lib/frr/ospf6d --version
+          LD_LIBRARY_PATH="$PWD/build/rootfs/usr/lib:/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" build/rootfs/usr/lib/frr/ospf6d --version
 
       - name: Install FRR into ephemeral CI runner
         shell: bash
