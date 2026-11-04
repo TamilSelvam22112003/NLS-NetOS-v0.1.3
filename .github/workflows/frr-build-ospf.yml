@@ -51,7 +51,7 @@ jobs:
       - name: Install FRR topotest Python and networking dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y iproute2 iputils-ping iptables tcpdump
+          sudo apt-get install -y gdb exabgp iproute2 iputils-ping iptables tcpdump
           python3 -m pip install --break-system-packages pytest pytest-xdist munet scapy psutil "protobuf<4"
 
       - name: Run upstream OSPF topology integration test
