@@ -1,38 +1,41 @@
 # FRRouting integration and filesystem layout
 
-## Upstream source
-The build script clones https://github.com/FRRouting/frr.git into a disposable build directory. It uses upstream `master` unless `FRR_REF` is set to a release tag or commit. For reproducible builds, set `FRR_REF` to a tested immutable commit or release tag.
+## Upstream source checkout
+FRRouting is linked as a Git submodule at `third_party/frr`, pointing to https://github.com/FRRouting/frr.git. The submodule is pinned to a specific upstream commit in the NetOS Git tree. To initialize it after cloning:
 
-The source checkout is not the installed runtime tree. FRR must be compiled and installed into a staging root.
-
-## Staged filesystem
-
-```text
-etc/frr/                 configuration templates
-usr/bin/                 user-facing tools (for example vtysh)
-usr/sbin/frr/            FRR helper/legacy commands
-usr/lib/frr/             routing daemons and internal executables
-usr/share/doc/frr/       docs and examples
-var/log/frr/             log directory
-var/run/frr/             runtime files and VTY sockets
-lib/systemd/system/      frr.service
+```bash
+git submodule update --init --recursive
 ```
 
-The build uses DESTDIR staging at `build/rootfs/`; it does not change the host's live routing installation.
+FRR's upstream `master` branch is its primary development branch and is unstable; the NetOS submodule commit remains pinned until intentionally updated.
 
-## Build and install
+## Build
 ```bash
 sudo ./scripts/build-frr.sh
-sudo ./scripts/install-frr.sh
 ```
 
-Set `FRR_REF` to pin an upstream release/tag/commit. Installation is intended for a disposable Ubuntu/Debian test VM. The installer creates the `frr` account, copies the staged root, reloads systemd, and leaves the service stopped.
+The build script runs upstream `bootstrap.sh`, configures and compiles FRR, and stages installation under `build/rootfs/`. It does not overwrite the host installation.
 
-## Configuration
-- `/etc/frr/daemons` controls which daemons are started.
-- Zebra is enabled by default; OSPF/BGP are disabled until deliberately enabled.
-- Edit interface names, addresses and routing policy for the test topology.
-- The service unit is an NLS project template; validate against the exact FRR version and supported Ubuntu/Debian release before production use.
+## Target filesystem
+The staged installation includes:
+- `etc/frr/` — daemon selection and configuration
+- `usr/bin/` — vtysh and user-facing tools
+- `usr/lib/frr/` — Zebra, OSPF and other routing daemons
+- `usr/share/doc/frr/` — documentation and examples
+- `var/log/frr/` and `var/run/frr/` — logs and runtime sockets
+- `lib/systemd/system/frr.service` — project service template
 
-## Security boundary
-FRR provides routing protocols; this integration does not implement NLS encryption. NLS/FRR interaction belongs in the separate integration layer.
+The `usr/sbin/frr/` directory is reserved for helper/legacy commands if supplied by the upstream build.
+
+## OSPF integration validation
+The GitHub Actions workflow `.github/workflows/frr-build-ospf.yml` builds upstream FRR, checks that Zebra/OSPFd/vtysh binaries exist, and runs FRR's upstream `ospf_topo1` topotest. This is an actual multi-router OSPF topology test, not merely a configuration syntax check.
+
+## Install on a disposable Ubuntu test VM
+After building:
+```bash
+sudo ./scripts/install-frr.sh
+```
+Review `/etc/frr/daemons` and router configuration before enabling services. The CI workflow installs only into its disposable runner. The custom systemd unit must be validated against the exact FRR build and target Ubuntu release before production use.
+
+## NLS boundary
+FRR provides routing protocols. It does not implement NLS packet encryption. The NLS/FRR integration layer must be developed and tested separately.

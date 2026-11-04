@@ -1,0 +1,61 @@
+name: FRR build and OSPF integration
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-ospf:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout NLS-NetOS and FRR submodule
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build upstream FRRouting from source
+        run: sudo ./scripts/build-frr.sh
+
+      - name: Install staged FRR into ephemeral CI runner
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo groupadd --system frr || true
+          sudo groupadd --system frrvty || true
+          sudo useradd --system --gid frr --groups frrvty --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin frr || true
+          sudo cp -a build/rootfs/. /
+          sudo install -d -o frr -g frr -m 0750 /var/run/frr /var/log/frr
+          sudo chown -R frr:frr /etc/frr
+          sudo chown root:frr /etc/frr/daemons
+          sudo chmod 0640 /etc/frr/daemons
+          test -x /usr/lib/frr/zebra
+          test -x /usr/lib/frr/ospfd
+          test -x /usr/bin/vtysh
+          /usr/lib/frr/zebra --version
+          /usr/lib/frr/ospfd --version
+
+      - name: Install FRR topotest Python and networking dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y iproute2 iputils-ping iptables tcpdump
+          python3 -m pip install --break-system-packages pytest pytest-xdist munet scapy psutil "protobuf<4"
+
+      - name: Run upstream OSPF topology integration test
+        run: |
+          sudo -E python3 -m pytest -v -s tests/topotests/ospf_topo1/test_ospf_topo1.py
+
+      - name: Upload OSPF test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frr-ospf-topotest-logs
+          path: |
+            /tmp/topotests/
+            tests/topotests/ospf_topo1/
+          if-no-files-found: ignore
