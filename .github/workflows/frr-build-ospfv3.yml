@@ -59,7 +59,7 @@ jobs:
 
       - name: Run upstream OSPFv3 topology integration test
         run: |
-          sudo -E python3 -m pytest -v -s tests/topotests/ospf6_topo1/test_ospf6_topo1.py
+          cd third_party/frr && sudo -E python3 -m pytest -v -s tests/topotests/ospf6_topo1/test_ospf6_topo1.py
 
       - name: Upload OSPFv3 test logs
         if: always()
