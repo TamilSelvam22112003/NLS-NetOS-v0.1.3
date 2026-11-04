@@ -12,7 +12,6 @@ sys.path.append(os.path.join(CWD, "../../../third_party/frr/tests/topotests"))
 
 from lib import topotest
 from lib.topogen import Topogen, get_topogen
-from lib.topolog import logger
 
 pytestmark = [pytest.mark.ospf6d]
 
@@ -20,7 +19,6 @@ pytestmark = [pytest.mark.ospf6d]
 def build_topo(tgen):
     for name in ("r1", "r2", "r3"):
         tgen.add_router(name)
-    # Router-to-router transit links, plus one stub LAN per edge router.
     for switch_name, routers in (
         ("s12", ("r1", "r2")),
         ("s23", ("r2", "r3")),
@@ -41,8 +39,7 @@ def setup_module(mod):
 
 
 def teardown_module():
-    tgen = get_topogen()
-    tgen.stop_topology()
+    get_topogen().stop_topology()
 
 
 def test_three_router_adjacencies_reach_full():
@@ -74,14 +71,10 @@ def test_remote_loopback_route_installed_in_kernel():
         pytest.skip(tgen.errors)
 
     def route_present():
-        return tgen.gears["r1"].run("ip -6 route show 2001:db8:3::3/128")
+        output = tgen.gears["r1"].run("ip -6 route show 2001:db8:3::3/128")
+        return "2001:db8:3::3/128" in output
 
-    result, output = topotest.run_and_expect(
-        lambda: route_present() if "2001:db8:3::3/128" in route_present() else None,
-        True,
-        count=90,
-        wait=1,
-    )
+    result, output = topotest.run_and_expect(route_present, True, count=90, wait=1)
     assert result is True, f"r1 did not install r3 loopback route: {output}"
 
 
@@ -93,16 +86,17 @@ def test_transit_link_failure_withdraws_and_restores_route():
     r2.run("ip link set r2-eth1 down")
     try:
         def withdrawn():
-            return "2001:db8:3::3/128" not in tgen.gears["r1"].run(
-                "ip -6 route show 2001:db8:3::3/128"
-            )
+            output = tgen.gears["r1"].run("ip -6 route show 2001:db8:3::3/128")
+            return "2001:db8:3::3/128" not in output
+
         result, output = topotest.run_and_expect(withdrawn, True, count=60, wait=1)
         assert result is True, f"r1 retained remote route after transit failure: {output}"
     finally:
         r2.run("ip link set r2-eth1 up")
+
     def restored():
-        return "2001:db8:3::3/128" in tgen.gears["r1"].run(
-            "ip -6 route show 2001:db8:3::3/128"
-        )
+        output = tgen.gears["r1"].run("ip -6 route show 2001:db8:3::3/128")
+        return "2001:db8:3::3/128" in output
+
     result, output = topotest.run_and_expect(restored, True, count=90, wait=1)
     assert result is True, f"r1 did not relearn r3 loopback after recovery: {output}"
