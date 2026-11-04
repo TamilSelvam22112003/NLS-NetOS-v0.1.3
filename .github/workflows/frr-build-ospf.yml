@@ -48,7 +48,7 @@ jobs:
 
       - name: Run upstream OSPF topology integration test
         run: |
-          sudo -E python3 -m pytest -v -s tests/topotests/ospf_topo1/test_ospf_topo1.py
+          cd third_party/frr && sudo -E python3 -m pytest -v -s tests/topotests/ospf_topo1/test_ospf_topo1.py
 
       - name: Upload OSPF test logs
         if: always()
@@ -57,5 +57,5 @@ jobs:
           name: frr-ospf-topotest-logs
           path: |
             /tmp/topotests/
-            tests/topotests/ospf_topo1/
+            third_party/frr/tests/topotests/ospf_topo1/
           if-no-files-found: ignore
