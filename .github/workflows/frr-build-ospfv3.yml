@@ -54,6 +54,7 @@ jobs:
           sudo chown -R frr:frr /etc/frr
           sudo chown root:frr /etc/frr/daemons
           sudo chmod 0640 /etc/frr/daemons
+          sudo ldconfig
           test -x /usr/lib/frr/zebra
           test -x /usr/lib/frr/ospf6d
           test -x /usr/bin/vtysh
@@ -66,12 +67,17 @@ jobs:
 
       - name: Run upstream OSPFv3 topology integration test
         run: |
-          cd third_party/frr && sudo -E python3 -m pytest -v -s tests/topotests/ospf6_topo1/test_ospf6_topo1.py
+          export LD_LIBRARY_PATH="/usr/lib:/usr/local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          cd third_party/frr && sudo -E env LD_LIBRARY_PATH="$LD_LIBRARY_PATH" python3 -m pytest -v -s tests/topotests/ospf6_topo1/test_ospf6_topo1.py
 
       - name: Run NLS-NetOS three-router OSPFv3 regression test
         run: |
           cd third_party/frr/tests/topotests
-          sudo -E python3 -m pytest -v -s ../../../../tests/topotests/nls_ospfv3_three_router/test_nls_ospfv3_three_router.py
+          sudo -E env LD_LIBRARY_PATH="/usr/lib:/usr/local/lib" python3 -m pytest -v -s ../../../../tests/topotests/nls_ospfv3_three_router/test_nls_ospfv3_three_router.py
+
+      - name: Make OSPFv3 test logs readable
+        if: always()
+        run: sudo chmod -R a+rX /tmp/topotests third_party/frr/tests/topotests/ospf6_topo1 tests/topotests/nls_ospfv3_three_router 2>/dev/null || true
 
       - name: Upload OSPFv3 test logs
         if: always()
