@@ -49,8 +49,9 @@ jobs:
           AFTER="$(sudo sha256sum "$AES" "$PRIV" "$PUB")"
           test "$BEFORE" = "$AFTER"
 
-      - name: Validate systemd unit
+      - name: Validate systemd unit and executable target
         run: |
+          sudo install -D -m 0700 scripts/generate-keys.sh /usr/lib/nls-netos/generate-keys.sh
           systemd-analyze verify lib/systemd/system/nls-keygen.service
 
       - name: Ensure no generated keys are tracked
