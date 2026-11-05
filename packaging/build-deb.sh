@@ -42,9 +42,15 @@ install -d -o frr -g frr -m 0750 /var/run/frr /var/log/frr
 if [ -d /etc/frr ]; then chown -R frr:frr /etc/frr; fi
 if [ -f /etc/frr/daemons ]; then chown root:frr /etc/frr/daemons; chmod 0640 /etc/frr/daemons; fi
 if command -v ldconfig >/dev/null 2>&1; then ldconfig; fi
-if command -x systemctl >/dev/null 2>&1; then
+if command -v systemctl >/dev/null 2>&1; then
   systemctl daemon-reload || true
-  systemctl enable nls-keygen.service || true
+  # Enable on every installed system. If systemd is currently running,
+  # provision keys immediately as well as on subsequent boots.
+  if systemctl is-system-running --quiet; then
+    systemctl enable --now nls-keygen.service
+  else
+    systemctl enable nls-keygen.service || true
+  fi
 fi
 exit 0
 POSTINST
