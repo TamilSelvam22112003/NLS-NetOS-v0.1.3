@@ -6,3 +6,11 @@ build/
 *.rpm
 __pycache__/
 *.py[cod]
+
+# Never commit runtime or locally generated cryptographic material.
+crypto/
+**/crypto/
+*.key
+*.pem
+*.p12
+*.pfx
