@@ -7,6 +7,7 @@ Before=nls-router.service
 
 [Service]
 Type=oneshot
+RemainAfterExit=yes
 User=root
 Group=root
 ExecStart=/usr/lib/nls-netos/generate-keys.sh
