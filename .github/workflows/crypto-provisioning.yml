@@ -1,0 +1,61 @@
+name: NLS cryptographic provisioning checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  key-provisioning:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shell and crypto test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openssl shellcheck
+
+      - name: Check shell syntax and lint
+        run: |
+          bash -n scripts/generate-keys.sh
+          shellcheck scripts/generate-keys.sh
+
+      - name: Test key generation, permissions, and idempotency in temporary path
+        run: |
+          set -euo pipefail
+          TEST_ROOT="$(mktemp -d)"
+          trap 'sudo rm -rf "$TEST_ROOT"' EXIT
+          sudo install -d -m 0700 "$TEST_ROOT"
+          # Rewrite only the fixed runtime root in a temporary test copy.
+          sed "s|/var/lib/nls-netos/crypto|$TEST_ROOT/crypto|g"             scripts/generate-keys.sh > "$TEST_ROOT/generate-keys-test.sh"
+          sudo chmod 0700 "$TEST_ROOT/generate-keys-test.sh"
+          sudo "$TEST_ROOT/generate-keys-test.sh"
+          AES="$TEST_ROOT/crypto/aes-256/aes256.key"
+          PRIV="$TEST_ROOT/crypto/RSA-2048/private_key.pem"
+          PUB="$TEST_ROOT/crypto/RSA-2048/public_key.pem"
+          test "$(sudo stat -c %s "$AES")" -eq 32
+          test "$(sudo stat -c %a "$AES")" = 600
+          test "$(sudo stat -c %a "$PRIV")" = 600
+          test "$(sudo stat -c %a "$PUB")" = 644
+          sudo openssl pkey -in "$PRIV" -check -noout
+          sudo openssl pkey -pubin -in "$PUB" -pubcheck -noout
+          BEFORE="$(sudo sha256sum "$AES" "$PRIV" "$PUB")"
+          sudo "$TEST_ROOT/generate-keys-test.sh"
+          AFTER="$(sudo sha256sum "$AES" "$PRIV" "$PUB")"
+          test "$BEFORE" = "$AFTER"
+
+      - name: Validate systemd unit
+        run: |
+          systemd-analyze verify lib/systemd/system/nls-keygen.service
+
+      - name: Ensure no generated keys are tracked
+        run: |
+          if git ls-files | grep -E '(^|/)(aes256\.key|private_key\.pem|public_key\.pem)$'; then
+            echo "Generated key material must not be committed." >&2
+            exit 1
+          fi
