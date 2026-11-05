@@ -32,6 +32,9 @@ jobs:
           dpkg-deb --info "$DEB"
           dpkg-deb --contents "$DEB" | grep -E 'usr/lib/frr/(zebra|ospfd|ospf6d)'
           dpkg-deb --contents "$DEB" | grep -E 'lib/systemd/system/frr.service'
+          dpkg-deb --contents "$DEB" | grep -E 'usr/lib/nls-netos/generate-keys.sh'
+          dpkg-deb --contents "$DEB" | grep -E 'lib/systemd/system/nls-keygen.service'
+          dpkg-deb --field "$DEB" Depends | grep -w openssl
 
       - name: Install package in a clean Ubuntu 24.04 container
         shell: bash
@@ -60,6 +63,9 @@ jobs:
               getent passwd frr
               getent group frrvty
               test -f /lib/systemd/system/frr.service
+              test -x /usr/lib/nls-netos/generate-keys.sh
+              test -f /lib/systemd/system/nls-keygen.service
+              dpkg-query -W openssl
             '
 
       - name: Upload Debian package
