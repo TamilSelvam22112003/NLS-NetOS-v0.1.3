@@ -18,12 +18,13 @@ jobs:
       - name: Install shell and crypto test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y openssl shellcheck
+          sudo apt-get install -y openssl shellcheck python3-cryptography
 
       - name: Check shell syntax and lint
         run: |
           bash -n scripts/generate-keys.sh
-          shellcheck scripts/generate-keys.sh
+          bash -n scripts/nls-boot-init.sh
+          shellcheck scripts/generate-keys.sh scripts/nls-boot-init.sh
 
       - name: Test key generation, permissions, and idempotency in temporary path
         run: |
@@ -31,8 +32,7 @@ jobs:
           TEST_ROOT="$(mktemp -d)"
           trap 'sudo rm -rf "$TEST_ROOT"' EXIT
           sudo install -d -m 0700 "$TEST_ROOT"
-          # Rewrite only the fixed runtime root in a temporary test copy.
-          sed "s|/var/lib/nls-netos/crypto|$TEST_ROOT/crypto|g"             scripts/generate-keys.sh > "$TEST_ROOT/generate-keys-test.sh"
+          sed "s|/var/lib/nls-netos/crypto|$TEST_ROOT/crypto|g" scripts/generate-keys.sh > "$TEST_ROOT/generate-keys-test.sh"
           sudo chmod 0700 "$TEST_ROOT/generate-keys-test.sh"
           sudo "$TEST_ROOT/generate-keys-test.sh"
           AES="$TEST_ROOT/crypto/aes-256/aes256.key"
@@ -49,10 +49,14 @@ jobs:
           AFTER="$(sudo sha256sum "$AES" "$PRIV" "$PUB")"
           test "$BEFORE" = "$AFTER"
 
-      - name: Validate systemd unit and executable target
+      - name: Validate boot unit and installed scripts
         run: |
           sudo install -D -m 0700 scripts/generate-keys.sh /usr/lib/nls-netos/generate-keys.sh
+          sudo install -D -m 0700 scripts/nls-boot-init.sh /usr/lib/nls-netos/nls-boot-init.sh
           systemd-analyze verify lib/systemd/system/nls-keygen.service
+          grep -q 'ExecStart=/usr/lib/nls-netos/nls-boot-init.sh' lib/systemd/system/nls-keygen.service
+          grep -q 'nls_service' scripts/nls-boot-init.sh
+          grep -q 'service_enabled' scripts/nls-boot-init.sh
 
       - name: Ensure no generated keys are tracked
         run: |
