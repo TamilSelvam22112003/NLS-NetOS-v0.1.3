@@ -1,5 +1,5 @@
 [Unit]
-Description=NLS-NetOS local cryptographic key initialization
+Description=NLS-NetOS boot-time activation-gated crypto and Router-CA initialization
 Documentation=https://github.com/TamilSelvam22112003/NLS-NetOS-v0.1.3
 DefaultDependencies=yes
 After=local-fs.target
@@ -10,14 +10,14 @@ Type=oneshot
 RemainAfterExit=yes
 User=root
 Group=root
-ExecStart=/usr/lib/nls-netos/generate-keys.sh
+ExecStart=/usr/lib/nls-netos/nls-boot-init.sh
 UMask=0077
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectHome=yes
 ProtectSystem=strict
-ReadWritePaths=/var/lib/nls-netos/crypto
-TimeoutStartSec=120
+ReadWritePaths=/var/lib/nls-netos
+TimeoutStartSec=180
 
 [Install]
 WantedBy=multi-user.target
