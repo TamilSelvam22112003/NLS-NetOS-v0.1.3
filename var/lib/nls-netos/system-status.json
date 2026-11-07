@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "system": {
+    "hostname": null,
+    "os_name": "NLS-NetOS",
+    "os_version": null,
+    "kernel_version": null,
+    "uptime_seconds": null,
+    "last_checked": null,
+    "status": "UNKNOWN"
+  },
+  "nls-network": {
+    "ipv6": {
+      "enabled": null,
+      "interfaces": [],
+      "addresses": [],
+      "forwarding": null,
+      "status": "UNKNOWN"
+    }
+  },
+  "nls-routing": {
+    "nls-ospfv3": {
+      "configured": null,
+      "daemon_enabled": null,
+      "daemon_running": null,
+      "neighbor_established": null,
+      "neighbor_count": 0,
+      "routes_installed": null,
+      "status": "UNKNOWN"
+    }
+  },
+  "nls_router_ca": {
+    "service_enabled": null,
+    "service_running": null,
+    "endpoint_reachable": null,
+    "certificate_valid": null,
+    "certificate_expiry": null,
+    "status": "UNKNOWN"
+  },
+  "cryptography": {
+    "aes_256_available": null,
+    "rsa_2048_available": null,
+    "private_keys_present": null,
+    "keys_validated": null,
+    "key_storage_path": "/var/lib/nls-netos/crypto/",
+    "status": "UNKNOWN"
+  },
+  "replay_protection": {
+    "enabled": null,
+    "sequence_validation": null,
+    "timestamp_validation": null,
+    "persistent_state_available": null,
+    "status": "UNKNOWN"
+  },
+  "nls_service": {
+    "service_enabled": null,
+    "service_running": null,
+    "encryption_operational": null,
+    "decryption_operational": null,
+    "status": "UNKNOWN"
+  },
+  "overall_health": {
+    "status": "UNKNOWN",
+    "ready": false,
+    "failed_components": [],
+    "degraded_components": [],
+    "last_checked": null
+  }
+}
