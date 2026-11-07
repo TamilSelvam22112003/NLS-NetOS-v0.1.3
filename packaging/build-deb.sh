@@ -12,10 +12,12 @@ rm -rf "$PKG_ROOT"
 install -d "$PKG_ROOT/DEBIAN" "$OUT_DIR"
 cp -a "$STAGE_DIR/." "$PKG_ROOT/"
 
-# Stage NLS local-key provisioning code and its boot unit. Key files themselves
-# are generated on the destination system and are never placed in the package.
+# Stage local key provisioning and the activation-gated boot initializer.
+# All generated key material and machine-specific CA metadata remain on target.
 install -D -m 0700 "$ROOT_DIR/scripts/generate-keys.sh" \
   "$PKG_ROOT/usr/lib/nls-netos/generate-keys.sh"
+install -D -m 0700 "$ROOT_DIR/scripts/nls-boot-init.sh" \
+  "$PKG_ROOT/usr/lib/nls-netos/nls-boot-init.sh"
 install -D -m 0644 "$ROOT_DIR/lib/systemd/system/nls-keygen.service" \
   "$PKG_ROOT/lib/systemd/system/nls-keygen.service"
 
@@ -44,8 +46,8 @@ if [ -f /etc/frr/daemons ]; then chown root:frr /etc/frr/daemons; chmod 0640 /et
 if command -v ldconfig >/dev/null 2>&1; then ldconfig; fi
 if command -v systemctl >/dev/null 2>&1; then
   systemctl daemon-reload || true
-  # Enable on every installed system. If systemd is currently running,
-  # provision keys immediately as well as on subsequent boots.
+  # The boot unit checks system-status.json. It performs no NLS key/CA setup
+  # unless nls_service.service_enabled is explicitly true.
   if systemctl is-system-running --quiet; then
     systemctl enable --now nls-keygen.service
   else
