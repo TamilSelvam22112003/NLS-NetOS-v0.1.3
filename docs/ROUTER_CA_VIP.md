@@ -2,35 +2,45 @@
 
 ## Runtime paths
 
-The implementation follows the existing NLS-NetOS state root:
+The implementation uses the established NLS-NetOS state root:
 
-- CA input metadata: `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-metadata.json`
+- CA metadata input: `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-metadata.json`
 - SHA-512 digest: `/var/lib/nls-netos/crypto/sha-512/r-ca-vip.key`
-- Generated vIP record: `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-vip.json`
+- vIP record: `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-vip.json`
 - Generator: `/usr/lib/nls-netos/generate-router-ca-vip.py`
 
-The current repository calls the CA metadata file `home-ca-metadata.json`; it does not currently use a `root-ca-metadata.json` filename. The generator consumes that existing metadata file rather than introducing a second competing metadata source. `home-ca-vip.py` is intentionally not used as a data filename: generated state is JSON, while executable logic belongs in the generator script.
+The current repository names its Home/Root CA metadata file `home-ca-metadata.json`; it does not create a separate `root-ca-metadata.json`. The generator reads that existing CA metadata. The example JSON in the development request matches `system-status.json`, which is a health report and is deliberately not used as CA identity input.
+
+The generated record is JSON data, so the runtime filename is `home-ca-vip.json`, not `home-ca-vip.py`. Python code belongs in the generator script.
 
 ## Derivation
 
-1. Read and validate the Home CA metadata JSON.
-2. Require a parsed CA certificate and its SHA-256 certificate fingerprint. If no CA certificate exists yet, skip vIP generation without failing boot.
-3. Canonicalize the metadata (sorted JSON keys and compact separators). The volatile `management.last_inspected` field is excluded so routine boot-time inspection does not rotate the address.
-4. Add an ISO-8601 UTC generation timestamp and a fresh 256-bit cryptographic nonce.
-5. Compute a domain-separated SHA-512 digest over the canonical metadata, timestamp, and nonce.
-6. Store the 512-bit digest as 128 hexadecimal characters in `r-ca-vip.key`.
-7. Derive the address from the first 128 digest bits and constrain the top three bits to the NLS global-unicast policy range `2000::/3`. Store the expanded eight-group IPv6 form in `home-ca-vip.json`.
+1. Read and validate the CA metadata JSON object.
+2. Canonicalize it using sorted keys and compact JSON separators. Exclude only the volatile `management.last_inspected` field so routine boot inspection does not rotate the vIP.
+3. Add the generation timestamp in UTC (ISO-8601 with a trailing `Z`) and a fresh 256-bit nonce from the operating system CSPRNG.
+4. Compute a domain-separated SHA-512 digest over the canonical metadata, UTC timestamp, and nonce.
+5. Write the complete 512-bit digest as 128 lowercase hexadecimal characters to `r-ca-vip.key`.
+6. Use the first 128 digest bits to derive an IPv6 address, constraining its high three bits to the NLS address-policy range `2000::/3`. The record stores the expanded eight-group IPv6 representation.
+7. Store the creation time, expiry time, nonce, metadata fingerprint, address, and trust state in `home-ca-vip.json`.
 
-The nonce and timestamp are recorded so the derivation inputs can be audited. A new address is generated when the metadata snapshot changes or the current record expires. The default lifetime is 24 hours; set `NLS_CA_VIP_TTL_HOURS` to an integer from 1 to 168 to change it.
+The generator can create a **candidate** vIP from metadata before a CA certificate is present. When the certificate or trust state is not validated, the record remains `PENDING_TRUST`. It becomes `ACTIVE` only if the metadata explicitly records `trust_status: TRUSTED`, `enabled: true`, and `certificate_chain_verified: true`, and contains a certificate fingerprint. This generator does not itself validate those conditions.
+
+## Lifetime and repeat behavior
+
+The default lifetime is 24 hours. Set `NLS_CA_VIP_TTL_HOURS` to an integer from 1 through 168 to change it. The generator preserves the current vIP while its metadata snapshot is unchanged and the record remains unexpired. It generates a replacement when the metadata changes or the lifetime expires.
+
+Timestamps are generated from the router's system clock in UTC. Production routers must have reliable time synchronization enabled; clock rollback can affect expiry decisions.
 
 ## Security properties and limitations
 
-- `r-ca-vip.key` is a SHA-512 digest, **not** a cryptographic secret key. The `.key` filename is retained to match the requested path, but it must not be used as an AES key, signing key, or authentication credential.
-- A hash-derived IPv6 address is an identifier, not proof of possession or identity. Router-CA authentication must independently verify certificates, signatures, and trust.
-- The record is marked `PENDING_TRUST` unless the CA metadata explicitly reports `trust_status: TRUSTED`, `enabled: true`, and `certificate_chain_verified: true`. Generation does not itself establish trust.
-- Both generated files are root-owned with mode `0600`; the containing directories are root-owned with mode `0700`.
-- Runtime digest and vIP state are generated on the installed Ubuntu system. No per-machine digest, nonce, or address is committed to Git.
+- `r-ca-vip.key` contains a SHA-512 digest, **not** a reusable cryptographic secret. The `.key` extension is retained for the requested path only. Do not use it as an AES key, signing key, or authentication credential.
+- The vIP is a derived identifier, not proof of possession, identity, authorization, or global IPv6 address allocation.
+- `2000::/3` is the NLS policy range already used by the project. A generated address is not automatically assigned or globally routed by an Internet registry. Check address uniqueness and deployment policy before using it on a live network.
+- The candidate remains `PENDING_TRUST` until independent Router-CA certificate-chain, identity, policy, and revocation validation succeeds.
+- Digest and vIP record files are root-owned with mode `0600`; containing directories are root-owned with mode `0700`.
+- A filesystem lock serializes concurrent generator invocations, and files are replaced atomically.
+- Runtime digest, nonce, and address are generated on the installed router; no machine-specific output is committed to Git.
 
 ## Boot integration
 
-After the boot initializer has updated Home CA metadata, it invokes the generator. Missing certificates cause a logged skip. Malformed metadata or unsafe generation failures cause boot initialization to fail closed rather than writing a partial record.
+When `nls_service.service_enabled` is exactly JSON boolean `true`, the boot initializer updates Home CA metadata and invokes the vIP generator. If metadata does not exist, generation is skipped. Invalid metadata or unsafe write failures stop initialization rather than producing a partial record.
