@@ -67,7 +67,11 @@ jobs:
 
       - name: Ensure no generated keys are tracked
         run: |
-          if git ls-files | grep -E '(^|/)(aes256\.key|private_key\.pem|public_key\.pem)$'; then
+          if git ls-files | grep -E '(^|/)(aes256\.key|private_key\.pem|public_key\.pem|r-ca-vip\.key); then
+            echo "Generated key material must not be committed." >&2
+            exit 1
+          fi
+; then
             echo "Generated key material must not be committed." >&2
             exit 1
           fi
