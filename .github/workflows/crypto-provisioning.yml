@@ -89,7 +89,7 @@ jobs:
           sudo env NLS_DATA_ROOT="$TEST_ROOT" python3 scripts/generate-router-ca-vip.py
           DIGEST="$TEST_ROOT/crypto/sha-512/r-ca-vip.key"
           RECORD="$TEST_ROOT/nls-router-ca/home-ca/home-ca-vip.json"
-          test "$(sudo wc -c < "$DIGEST")" -eq 129
+          test "$(sudo stat -c %s "$DIGEST")" -eq 129
           sudo python3 - "$DIGEST" "$RECORD" <<'PY'
           import ipaddress, json, pathlib, sys
           digest_path, record_path = map(pathlib.Path, sys.argv[1:])
