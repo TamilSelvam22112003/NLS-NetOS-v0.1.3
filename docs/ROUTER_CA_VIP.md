@@ -9,7 +9,7 @@ The implementation uses the established NLS-NetOS state root:
 - vIP record: `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-vip.json`
 - Generator: `/usr/lib/nls-netos/generate-router-ca-vip.py`
 
-The generator reads the Root CA metadata file. The example JSON supplied in the development request matches the existing `system-status.json` health-report schema; it is not treated as CA identity metadata.
+The generator reads the Root CA metadata file. The example JSON supplied in the development request matches the existing `system-status.json` health-report schema; it is not treated as CA identity metadata. The boot initializer migrates an existing `home-ca-metadata.json` to the new `root-ca-metadata.json` filename without deleting the legacy file.
 
 The generated record is JSON data, so the runtime filename is `home-ca-vip.json`, not `home-ca-vip.py`. Python code belongs in the generator script.
 
