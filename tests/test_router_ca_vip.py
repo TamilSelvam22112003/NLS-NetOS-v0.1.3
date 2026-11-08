@@ -51,6 +51,7 @@ class HomeCaVipTests(unittest.TestCase):
         self.assertEqual(len(digest), 128)
         self.assertEqual(address.split(":")[0][:2], "fd")
         self.assertTrue(address.startswith("fd"))
+        self.assertEqual(len(address.split(":")), 8)
 
     def test_rejects_wrong_schema(self):
         with self.assertRaises(ValueError):
