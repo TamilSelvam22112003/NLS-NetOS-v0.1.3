@@ -11,7 +11,7 @@ NLS-NetOS provisions per-machine cryptographic material and Router-CA metadata o
 | AES-256 raw key (32 bytes) | `/var/lib/nls-netos/crypto/aes-256/aes256.key` | root:root, 0600 |
 | RSA-2048 private key | `/var/lib/nls-netos/crypto/RSA-2048/private_key.pem` | root:root, 0600 |
 | RSA-2048 public key | `/var/lib/nls-netos/crypto/RSA-2048/public_key.pem` | root:root, 0644 |
-| Home CA metadata | `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-metadata.json` | root:root, 0600 |
+| Home CA metadata | `/var/lib/nls-netos/nls-router-ca/home-ca/root-ca-metadata.json` | root:root, 0600 |
 | Home CA certificate (when provisioned) | `/var/lib/nls-netos/nls-router-ca/home-ca/root-ca.crt` | public certificate |
 | ISP CA directory | `/var/lib/nls-netos/nls-router-ca/isp-ca/` | root-owned directory |
 | Router-CA SHA-512 digest | `/var/lib/nls-netos/crypto/sha-512/r-ca-vip.key` | root:root, 0600 |
@@ -31,7 +31,7 @@ Router-CA data is a sibling of `crypto/`, not a child of it:
 │       └── r-ca-vip.key
 └── nls-router-ca/
     ├── home-ca/
-    │   ├── home-ca-metadata.json
+    │   ├── root-ca-metadata.json
     │   └── home-ca-vip.json
     └── isp-ca/
 ```
@@ -58,11 +58,11 @@ If the status file is missing, invalid, or the value is false/null, initializati
 
 1. Runs the per-machine AES-256 and RSA-2048 generation/validation script under `/var/lib/nls-netos/crypto/`.
 2. Creates the Home CA and ISP CA runtime directories.
-3. Creates `home-ca-metadata.json` if absent.
+3. Creates `root-ca-metadata.json` if absent.
 4. If `home-ca/root-ca.crt` exists, reads its X.509 certificate fields into the metadata file. If no certificate exists, certificate fields remain null and trust remains PENDING.
 5. Runs `generate-router-ca-vip.py` to derive a time-bound candidate IPv6 identifier from canonical CA metadata, a UTC timestamp, and a fresh 256-bit nonce. The candidate is marked `PENDING_TRUST` until trust is independently validated.
 
-The current repository uses `home-ca-metadata.json` as its Home/Root CA metadata source. The example JSON in the development request matches `system-status.json`; that health report is not used as CA identity input. The generated vIP data is stored as JSON in `home-ca-vip.json`, not in a `.py` file.
+The current repository uses `root-ca-metadata.json` as its Home/Root CA metadata source. The example JSON in the development request matches `system-status.json`; that health report is not used as CA identity input. The generated vIP data is stored as JSON in `home-ca-vip.json`, not in a `.py` file.
 
 The metadata inspector does not download certificates, contact a CA endpoint, or mark a certificate trusted. Certificate presence and parsing alone do not establish trust; chain, identity, policy, and revocation validation are separate operations.
 
