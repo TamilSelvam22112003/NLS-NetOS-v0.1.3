@@ -13,7 +13,7 @@ NLS-NetOS provisions per-machine cryptographic material and Router-CA metadata o
 | RSA-2048 public key | `/var/lib/nls-netos/crypto/RSA-2048/public_key.pem` | root:root, 0644 |
 | Home CA metadata | `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-metadata.json` | root:root, 0600 |
 | Home CA certificate (when provisioned) | `/var/lib/nls-netos/nls-router-ca/home-ca/root-ca.crt` | public certificate |
-| Router-CA VIP identifier | `/var/lib/nls-netos/crypto/sha-512/r-ca-vip.key` | root:root, 0600 |
+| Router-CA SHA-512 digest | `/var/lib/nls-netos/crypto/sha-512/r-ca-vip.key` | root:root, 0600 |
 | Home CA VIP lifecycle record | `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-vip.json` | root:root, 0600 |
 | ISP CA directory | `/var/lib/nls-netos/nls-router-ca/isp-ca/` | root-owned directory |
 
@@ -113,8 +113,8 @@ The persistent AES key generated here is local machine material, not a fleet-wid
 
 During enabled boot initialization, `generate-router-ca-vip.py` reads the stable identity fields from `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-metadata.json` (excluding volatile inspection timestamps such as `management.last_inspected`), the current UTC timestamp, and a fresh 256-bit cryptographically secure random nonce. It computes a domain-separated SHA-512 digest, divides the digest into four 128-bit blocks, selects one block with a CSPRNG, and maps the result into the IPv6 Unique Local Address range (`fd00::/8`).
 
-The address is written to `/var/lib/nls-netos/crypto/sha-512/r-ca-vip.key`. Its lifecycle record is written to `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-vip.json`. The default lifetime is 24 hours. An unexpired address is preserved across reboots while the CA metadata remains unchanged; an expired address or changed metadata causes regeneration. Both files are root-owned and mode `0600`.
+The full 512-bit digest (128 hexadecimal characters) is written to `/var/lib/nls-netos/crypto/sha-512/r-ca-vip.key`. The selected 128-bit block is formatted as the IPv6 VIP and stored in `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-vip.json` with its lifecycle record. The default lifetime is 24 hours. An unexpired address is preserved across reboots while the CA metadata remains unchanged; an expired address or changed metadata causes regeneration. Both files are root-owned and mode `0600`.
 
-Despite its `.key` suffix, `r-ca-vip.key` contains an IPv6 identifier, not secret key material. The address is ULA-scoped for private/local routing and is not globally routable. The companion record contains issue/expiry timestamps, the metadata SHA-256 fingerprint, derivation details, and nonce. The host UTC clock must be correct (preferably NTP-synchronized).
+Despite its `.key` suffix, `r-ca-vip.key` contains a SHA-512 digest, not secret key material. The companion JSON record contains the IPv6 identifier, issue/expiry timestamps, the metadata SHA-256 fingerprint, derivation details, and nonce. The address is ULA-scoped for private/local routing and is not globally routable. The host UTC clock must be correct (preferably NTP-synchronized).
 
 This VIP does not authenticate a Router-CA, establish certificate trust, or replace a signed certificate. It is also distinct from the protocol per-handshake vIP derivation; do not use this persistent local alias as a substitute for that handshake mechanism.
