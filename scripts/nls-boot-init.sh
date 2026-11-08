@@ -11,6 +11,7 @@ readonly ISP_CA_DIR="${CA_ROOT}/isp-ca"
 readonly HOME_CA_CERT="${HOME_CA_DIR}/root-ca.crt"
 readonly HOME_CA_METADATA="${HOME_CA_DIR}/home-ca-metadata.json"
 readonly KEYGEN="/usr/lib/nls-netos/generate-keys.sh"
+readonly VIP_DERIVER="/usr/lib/nls-netos/derive-router-ca-vip.py"
 
 log() { printf '[nls-boot-init] %s\n' "$*"; }
 die() { log "ERROR: $*" >&2; exit 1; }
@@ -238,6 +239,11 @@ PY
 
 chown root:root "$HOME_CA_METADATA"
 chmod 0600 "$HOME_CA_METADATA"
+
+# Derive the Home Router-CA VIP from canonical CA metadata and the current UTC time bucket.
+[[ -x "$VIP_DERIVER" ]] || die "Router-CA VIP derivation script not installed: $VIP_DERIVER"
+"$VIP_DERIVER"
+
 log "NLS boot initialization completed"
 log "Crypto directory: $CRYPTO_ROOT"
 log "Router CA directory: $CA_ROOT"
