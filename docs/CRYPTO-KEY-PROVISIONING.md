@@ -93,6 +93,7 @@ sudo apt-get update
 sudo apt-get install -y openssl python3-cryptography
 sudo install -D -m 0700 scripts/generate-keys.sh /usr/lib/nls-netos/generate-keys.sh
 sudo install -D -m 0700 scripts/nls-boot-init.sh /usr/lib/nls-netos/nls-boot-init.sh
+sudo install -D -m 0700 scripts/home-ca-vip.py /usr/lib/nls-netos/home-ca-vip.py
 sudo install -D -m 0644 lib/systemd/system/nls-keygen.service /lib/systemd/system/nls-keygen.service
 sudo systemctl daemon-reload
 sudo systemctl enable nls-keygen.service
