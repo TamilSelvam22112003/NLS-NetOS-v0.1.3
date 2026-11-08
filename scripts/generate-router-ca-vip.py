@@ -18,7 +18,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 DATA_ROOT = Path(os.environ.get("NLS_DATA_ROOT", "/var/lib/nls-netos"))
-METADATA_PATH = DATA_ROOT / "nls-router-ca/home-ca/home-ca-metadata.json"
+METADATA_PATH = DATA_ROOT / "nls-router-ca/home-ca/root-ca-metadata.json"
 VIP_DIR = DATA_ROOT / "nls-router-ca/home-ca"
 VIP_RECORD = VIP_DIR / "home-ca-vip.json"
 DIGEST_DIR = DATA_ROOT / "crypto/sha-512"
