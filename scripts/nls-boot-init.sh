@@ -11,6 +11,7 @@ readonly ISP_CA_DIR="${CA_ROOT}/isp-ca"
 readonly HOME_CA_CERT="${HOME_CA_DIR}/root-ca.crt"
 readonly HOME_CA_METADATA="${HOME_CA_DIR}/home-ca-metadata.json"
 readonly KEYGEN="/usr/lib/nls-netos/generate-keys.sh"
+readonly VIP_GENERATOR="/usr/lib/nls-netos/home-ca-vip.py"
 
 log() { printf '[nls-boot-init] %s\n' "$*"; }
 die() { log "ERROR: $*" >&2; exit 1; }
@@ -238,6 +239,15 @@ PY
 
 chown root:root "$HOME_CA_METADATA"
 chmod 0600 "$HOME_CA_METADATA"
+
+# Derive the Home Router-CA VIP from stable CA metadata and the current UTC
+# five-minute time bucket. The digest is an identifier, not an authentication key.
+[[ -r "$VIP_GENERATOR" ]] || die "VIP generator not installed: $VIP_GENERATOR"
+python3 "$VIP_GENERATOR" \
+    --metadata "$HOME_CA_METADATA" \
+    --digest-output "$CRYPTO_ROOT/sha-512/r-ca-vip.key" \
+    --record-output "$HOME_CA_DIR/home-ca-vip.json"
+
 log "NLS boot initialization completed"
 log "Crypto directory: $CRYPTO_ROOT"
 log "Router CA directory: $CA_ROOT"
