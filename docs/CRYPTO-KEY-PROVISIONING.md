@@ -111,7 +111,7 @@ The persistent AES key generated here is local machine material, not a fleet-wid
 
 ## Router-CA VIP derivation and lifecycle
 
-During enabled boot initialization, `generate-router-ca-vip.py` reads the stable identity fields from `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-metadata.json` (excluding volatile inspection timestamps such as `management.last_inspected`), the current UTC timestamp, and a fresh 256-bit cryptographically secure random nonce. It computes a domain-separated SHA-512 digest, divides the digest into four 128-bit blocks, selects one block with a CSPRNG, and maps the result into the IPv6 Unique Local Address range (`fc00::/7`).
+During enabled boot initialization, `generate-router-ca-vip.py` reads the stable identity fields from `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-metadata.json` (excluding volatile inspection timestamps such as `management.last_inspected`), the current UTC timestamp, and a fresh 256-bit cryptographically secure random nonce. It computes a domain-separated SHA-512 digest, divides the digest into four 128-bit blocks, selects one block with a CSPRNG, and maps the result into the IPv6 Unique Local Address range (`fd00::/8`).
 
 The address is written to `/var/lib/nls-netos/crypto/sha-512/r-ca-vip.key`. Its lifecycle record is written to `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-vip.json`. The default lifetime is 24 hours. An unexpired address is preserved across reboots while the CA metadata remains unchanged; an expired address or changed metadata causes regeneration. Both files are root-owned and mode `0600`.
 
