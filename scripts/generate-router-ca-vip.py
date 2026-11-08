@@ -25,7 +25,7 @@ DIGEST_DIR = DATA_ROOT / "crypto/sha-512"
 DIGEST_FILE = DIGEST_DIR / "r-ca-vip.key"
 LOCK_FILE = VIP_DIR / ".home-ca-vip.lock"
 DEFAULT_TTL_HOURS = 24
-DOMAIN = b"NLS-NetOS/Router-CA/vIP/v1\\x00"
+DOMAIN = b"NLS-NetOS/Router-CA/vIP/v1\x00"
 GLOBAL_UNICAST = ipaddress.IPv6Network("2000::/3")
 
 
@@ -168,7 +168,7 @@ def main() -> int:
             + len(metadata_bytes).to_bytes(8, "big")
             + metadata_bytes
             + timestamp.encode("ascii")
-            + b"\\x00"
+            + b"\x00"
             + nonce
         )
         digest = hashlib.sha512(payload).digest()
@@ -215,8 +215,8 @@ def main() -> int:
             ),
         }
 
-        atomic_write(DIGEST_FILE, digest_hex + "\\n", 0o600)
-        atomic_write(VIP_RECORD, json.dumps(record, indent=2) + "\\n", 0o600)
+        atomic_write(DIGEST_FILE, digest_hex + "\n", 0o600)
+        atomic_write(VIP_RECORD, json.dumps(record, indent=2) + "\n", 0o600)
         for path in (DIGEST_FILE, VIP_RECORD):
             os.chown(path, 0, 0)
             os.chmod(path, 0o600)
