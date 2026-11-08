@@ -60,6 +60,57 @@ jobs:
           grep -q 'nls_service' scripts/nls-boot-init.sh
           grep -q 'service_enabled' scripts/nls-boot-init.sh
 
+      - name: Test Router-CA vIP generation without a certificate
+        run: |
+          set -euo pipefail
+          TEST_ROOT="$(mktemp -d)"
+          trap 'sudo rm -rf "$TEST_ROOT"' EXIT
+          sudo install -d -o root -g root -m 0700 "$TEST_ROOT/nls-router-ca/home-ca"
+          sudo tee "$TEST_ROOT/nls-router-ca/home-ca/home-ca-metadata.json" >/dev/null <<'JSON'
+          {
+            "schema_version": 1,
+            "ca_id": "HOME-CA-CI",
+            "ca_name": "NLS CI Root CA",
+            "certificate": {
+              "present": false,
+              "sha256_fingerprint": null
+            },
+            "trust": {
+              "trust_status": "PENDING",
+              "enabled": false,
+              "certificate_chain_verified": false
+            },
+            "management": {
+              "last_inspected": "2026-11-08T15:20:00Z"
+            }
+          }
+          JSON
+          sudo env NLS_DATA_ROOT="$TEST_ROOT" python3 scripts/generate-router-ca-vip.py
+          DIGEST="$TEST_ROOT/crypto/sha-512/r-ca-vip.key"
+          RECORD="$TEST_ROOT/nls-router-ca/home-ca/home-ca-vip.json"
+          test "$(sudo wc -c < "$DIGEST")" -eq 129
+          sudo python3 - "$DIGEST" "$RECORD" <<'PY'
+          import ipaddress, json, pathlib, sys
+          digest_path, record_path = map(pathlib.Path, sys.argv[1:])
+          digest = digest_path.read_text().strip()
+          record = json.loads(record_path.read_text())
+          address = ipaddress.IPv6Address(record["ipv6_address"])
+          assert len(digest) == 128
+          int(digest, 16)
+          assert address in ipaddress.IPv6Network("2000::/3")
+          assert address.exploded == record["ipv6_address"]
+          assert record["status"] == "PENDING_TRUST"
+          assert record["hash_algorithm"] == "SHA-512"
+          assert record["expires_at"] > record["created_at"]
+          assert record["ttl_seconds"] == 86400
+          assert digest_path.stat().st_mode & 0o777 == 0o600
+          assert record_path.stat().st_mode & 0o777 == 0o600
+          PY
+          BEFORE="$(sudo sha256sum "$DIGEST" "$RECORD")"
+          sudo env NLS_DATA_ROOT="$TEST_ROOT" python3 scripts/generate-router-ca-vip.py
+          AFTER="$(sudo sha256sum "$DIGEST" "$RECORD")"
+          test "$BEFORE" = "$AFTER"
+
       - name: Ensure no generated keys are tracked
         run: |
           if git ls-files | grep -E '(^|/)(aes256\.key|private_key\.pem|public_key\.pem)$'; then
