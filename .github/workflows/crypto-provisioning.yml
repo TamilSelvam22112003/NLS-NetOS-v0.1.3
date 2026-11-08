@@ -24,6 +24,7 @@ jobs:
         run: |
           bash -n scripts/generate-keys.sh
           bash -n scripts/nls-boot-init.sh
+          python3 -m py_compile scripts/home-ca-vip.py
           shellcheck scripts/generate-keys.sh scripts/nls-boot-init.sh
 
       - name: Test key generation, permissions, and idempotency in temporary path
@@ -53,14 +54,24 @@ jobs:
         run: |
           sudo install -D -m 0700 scripts/generate-keys.sh /usr/lib/nls-netos/generate-keys.sh
           sudo install -D -m 0700 scripts/nls-boot-init.sh /usr/lib/nls-netos/nls-boot-init.sh
+          sudo install -D -m 0700 scripts/home-ca-vip.py /usr/lib/nls-netos/home-ca-vip.py
+          test -x /usr/lib/nls-netos/home-ca-vip.py
           sudo systemd-analyze verify lib/systemd/system/nls-keygen.service
           grep -q 'ExecStart=/usr/lib/nls-netos/nls-boot-init.sh' lib/systemd/system/nls-keygen.service
           grep -q 'nls_service' scripts/nls-boot-init.sh
           grep -q 'service_enabled' scripts/nls-boot-init.sh
 
+      - name: Test Router-CA VIP derivation and expiry
+        run: |
+          python3 -m unittest discover -s tests -p 'test_router_ca_vip.py' -v
+
       - name: Ensure no generated keys are tracked
         run: |
-          if git ls-files | grep -E '(^|/)(aes256\.key|private_key\.pem|public_key\.pem)$'; then
+          if git ls-files | grep -E '(^|/)(aes256\.key|private_key\.pem|public_key\.pem|r-ca-vip\.key); then
+            echo "Generated key material must not be committed." >&2
+            exit 1
+          fi
+; then
             echo "Generated key material must not be committed." >&2
             exit 1
           fi

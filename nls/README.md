@@ -11,6 +11,8 @@ Implemented:
 - Thread-safe bounded sliding-window replay rejection.
 - Experimental Ed25519 Router-CA root creation, router identity certificate
   issuance, and pinned-root certificate verification.
+- Local Home Router-CA VIP identifier derivation from canonical CA metadata and
+  a domain-separated five-minute UTC bucket (RFC 4193 ULA output).
 
 Router-CA limitations: the root private key is written unencrypted with mode
 0600 and must be protected offline; there is no revocation/CRL or OCSP,
@@ -18,10 +20,16 @@ certificate distribution, rotation ceremony, hardware-backed key storage,
 peer authorization policy, or integration with the NLS handshake. Treat this
 as a lab-only prototype.
 
-Not implemented: NLS M1-M4 handshake; vIP derivation/verification; key rotation
-and crash-safe nonce persistence; packet wire format; Linux TUN/netlink
-integration; routing-manager adapter; daemon lifecycle; or end-to-end OSPFv3
-integration.
+Not implemented: NLS M1-M4 handshake; peer-bound/session-bound vIP
+derivation and verification; vIP routing and rollover coordination; key
+rotation and crash-safe nonce persistence; packet wire format; Linux
+TUN/netlink integration; routing-manager adapter; daemon lifecycle; or
+end-to-end OSPFv3 integration.
+
+The local Home Router-CA VIP utility is an identifier prototype only. It hashes
+public CA metadata and time; it is not a secret, does not authenticate a router,
+and must not be used as a traffic key or as a replacement for certificate and
+session authentication.
 
 Before production use, define and review a versioned wire protocol,
 domain-separated directional keys, nonce uniqueness across restarts,
