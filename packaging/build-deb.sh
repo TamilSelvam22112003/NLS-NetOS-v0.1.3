@@ -18,6 +18,8 @@ install -D -m 0700 "$ROOT_DIR/scripts/generate-keys.sh" \
   "$PKG_ROOT/usr/lib/nls-netos/generate-keys.sh"
 install -D -m 0700 "$ROOT_DIR/scripts/nls-boot-init.sh" \
   "$PKG_ROOT/usr/lib/nls-netos/nls-boot-init.sh"
+install -D -m 0700 "$ROOT_DIR/scripts/home-ca-vip.py" \
+  "$PKG_ROOT/usr/lib/nls-netos/home-ca-vip.py"
 install -D -m 0644 "$ROOT_DIR/lib/systemd/system/nls-keygen.service" \
   "$PKG_ROOT/lib/systemd/system/nls-keygen.service"
 
