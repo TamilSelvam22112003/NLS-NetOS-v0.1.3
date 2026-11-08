@@ -14,6 +14,8 @@ NLS-NetOS provisions per-machine cryptographic material and Router-CA metadata o
 | Home CA metadata | `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-metadata.json` | root:root, 0600 |
 | Home CA certificate (when provisioned) | `/var/lib/nls-netos/nls-router-ca/home-ca/root-ca.crt` | public certificate |
 | ISP CA directory | `/var/lib/nls-netos/nls-router-ca/isp-ca/` | root-owned directory |
+| Router-CA SHA-512 digest | `/var/lib/nls-netos/crypto/sha-512/r-ca-vip.key` | root:root, 0600 |
+| Home CA virtual IPv6 record | `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-vip.json` | root:root, 0600 |
 
 Router-CA data is a sibling of `crypto/`, not a child of it:
 
