@@ -13,7 +13,7 @@ NLS-NetOS provisions per-machine cryptographic material and Router-CA metadata o
 | RSA-2048 public key | `/var/lib/nls-netos/crypto/RSA-2048/public_key.pem` | root:root, 0644 |
 | Home CA metadata | `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-metadata.json` | root:root, 0600 |
 | Home CA certificate (when provisioned) | `/var/lib/nls-netos/nls-router-ca/home-ca/root-ca.crt` | public certificate |
-| ISP CA directory | `/var/lib/nls-netos/nls-router-ca/isp-ca/` | root-owned directory |
+| ISP CA directory | `/var/lib/nls-netos/nls-router-ca/isp-ca/` | root-owned directory |\n| Router-CA SHA-512 digest | `/var/lib/nls-netos/crypto/sha-512/r-ca-vip.key` | root:root, 0600 |\n| Home CA virtual IPv6 record | `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-vip.json` | root:root, 0600 |
 | Router-CA SHA-512 digest | `/var/lib/nls-netos/crypto/sha-512/r-ca-vip.key` | root:root, 0600 |
 | Home CA virtual IPv6 record | `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-vip.json` | root:root, 0600 |
 
@@ -56,7 +56,7 @@ If the status file is missing, invalid, or the value is false/null, initializati
 1. Runs the existing per-machine AES-256 and RSA-2048 generation/validation script under `/var/lib/nls-netos/crypto/`.
 2. Creates `/var/lib/nls-netos/nls-router-ca/home-ca/` and `/var/lib/nls-netos/nls-router-ca/isp-ca/`.
 3. Creates `home-ca-metadata.json` if absent.
-4. If `home-ca/root-ca.crt` exists, reads its X.509 certificate fields into the metadata file. If no certificate exists, certificate fields remain null and trust remains PENDING.
+4. If `home-ca/root-ca.crt` exists, reads its X.509 certificate fields into the metadata file. If no certificate exists, certificate fields remain null and trust remains PENDING.\n5. Runs `generate-router-ca-vip.py` to derive a time-bound candidate IPv6 identifier from canonical CA metadata, a UTC timestamp, and a fresh 256-bit nonce. The candidate is marked `PENDING_TRUST` until trust is independently validated.
 5. Invokes `generate-router-ca-vip.py`. It creates a time-bound SHA-512-derived candidate IPv6 identifier only when a parsed CA certificate and fingerprint are present. It reuses an unexpired identifier for an unchanged metadata snapshot.
 
 The metadata inspector does not download certificates, contact a CA endpoint, or mark a certificate trusted. Certificate presence and parsing alone do not establish trust; chain, identity, policy, and revocation validation are separate operations.
@@ -75,7 +75,7 @@ sudo apt-get install -y openssl python3-cryptography
 The package installs:
 
 - `/usr/lib/nls-netos/generate-keys.sh`
-- `/usr/lib/nls-netos/nls-boot-init.sh`
+- `/usr/lib/nls-netos/nls-boot-init.sh`\n- `/usr/lib/nls-netos/generate-router-ca-vip.py`
 - `/usr/lib/nls-netos/generate-router-ca-vip.py`
 - `/lib/systemd/system/nls-keygen.service`
 
@@ -89,7 +89,7 @@ From the repository root:
 sudo apt-get update
 sudo apt-get install -y openssl python3-cryptography
 sudo install -D -m 0700 scripts/generate-keys.sh /usr/lib/nls-netos/generate-keys.sh
-sudo install -D -m 0700 scripts/nls-boot-init.sh /usr/lib/nls-netos/nls-boot-init.sh
+sudo install -D -m 0700 scripts/nls-boot-init.sh /usr/lib/nls-netos/nls-boot-init.sh\nsudo install -D -m 0700 scripts/generate-router-ca-vip.py /usr/lib/nls-netos/generate-router-ca-vip.py
 sudo install -D -m 0700 scripts/generate-router-ca-vip.py /usr/lib/nls-netos/generate-router-ca-vip.py
 sudo install -D -m 0644 lib/systemd/system/nls-keygen.service /lib/systemd/system/nls-keygen.service
 sudo systemctl daemon-reload
