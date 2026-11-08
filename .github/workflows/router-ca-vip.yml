@@ -31,12 +31,15 @@ jobs:
             --metadata "$TEST_ROOT/home-ca-metadata.json" \
             --key-output "$TEST_ROOT/crypto/sha-512/r-ca-vip.key" \
             --record-output "$TEST_ROOT/home-ca-vip.json"
-          VIP="$(sudo cat "$TEST_ROOT/crypto/sha-512/r-ca-vip.key")"
+          VIP="$(sudo python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["address"])' "$TEST_ROOT/home-ca-vip.json")"
+          DIGEST="$(sudo cat "$TEST_ROOT/crypto/sha-512/r-ca-vip.key")"
           sudo python3 -c 'import ipaddress,sys; a=ipaddress.IPv6Address(sys.argv[1]); assert a in ipaddress.IPv6Network("fd00::/8")' "$VIP"
+          test "${#DIGEST}" -eq 128
           test "$(sudo stat -c %a "$TEST_ROOT/crypto/sha-512/r-ca-vip.key")" = 600
-          sudo python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["algorithm"]=="SHA-512" and d["validity_seconds"]==86400 and d["issued_at"] and d["expires_at"] and d["nonce_hex"]' "$TEST_ROOT/home-ca-vip.json"
+          sudo python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["algorithm"]=="SHA-512" and len(d["sha512_digest_hex"])==128 and d["validity_seconds"]==86400 and d["issued_at"] and d["expires_at"] and d["nonce_hex"]' "$TEST_ROOT/home-ca-vip.json"
           sudo python3 scripts/generate-router-ca-vip.py \
             --metadata "$TEST_ROOT/home-ca-metadata.json" \
             --key-output "$TEST_ROOT/crypto/sha-512/r-ca-vip.key" \
             --record-output "$TEST_ROOT/home-ca-vip.json"
-          test "$VIP" = "$(sudo cat "$TEST_ROOT/crypto/sha-512/r-ca-vip.key")"
+          test "$DIGEST" = "$(sudo cat "$TEST_ROOT/crypto/sha-512/r-ca-vip.key")"
+          test "$VIP" = "$(sudo python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["address"])' "$TEST_ROOT/home-ca-vip.json")"
