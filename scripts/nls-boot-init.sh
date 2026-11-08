@@ -11,6 +11,7 @@ readonly ISP_CA_DIR="${CA_ROOT}/isp-ca"
 readonly HOME_CA_CERT="${HOME_CA_DIR}/root-ca.crt"
 readonly HOME_CA_METADATA="${HOME_CA_DIR}/home-ca-metadata.json"
 readonly KEYGEN="/usr/lib/nls-netos/generate-keys.sh"
+readonly VIPGEN="/usr/lib/nls-netos/generate-router-ca-vip.py"
 
 log() { printf '[nls-boot-init] %s\n' "$*"; }
 die() { log "ERROR: $*" >&2; exit 1; }
@@ -238,6 +239,11 @@ PY
 
 chown root:root "$HOME_CA_METADATA"
 chmod 0600 "$HOME_CA_METADATA"
+
+# Generate or preserve a 24-hour Home Router-CA ULA VIP from canonical CA metadata.
+[[ -x "$VIPGEN" ]] || die "Router-CA VIP generator not installed: $VIPGEN"
+python3 "$VIPGEN"
+
 log "NLS boot initialization completed"
 log "Crypto directory: $CRYPTO_ROOT"
 log "Router CA directory: $CA_ROOT"
