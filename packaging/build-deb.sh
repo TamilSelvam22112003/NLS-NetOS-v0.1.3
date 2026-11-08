@@ -18,8 +18,14 @@ install -D -m 0700 "$ROOT_DIR/scripts/generate-keys.sh" \
   "$PKG_ROOT/usr/lib/nls-netos/generate-keys.sh"
 install -D -m 0700 "$ROOT_DIR/scripts/nls-boot-init.sh" \
   "$PKG_ROOT/usr/lib/nls-netos/nls-boot-init.sh"
+install -D -m 0700 "$ROOT_DIR/scripts/derive-router-ca-vip.py" \
+  "$PKG_ROOT/usr/lib/nls-netos/derive-router-ca-vip.py"
 install -D -m 0644 "$ROOT_DIR/lib/systemd/system/nls-keygen.service" \
   "$PKG_ROOT/lib/systemd/system/nls-keygen.service"
+install -D -m 0644 "$ROOT_DIR/lib/systemd/system/nls-vip-refresh.service" \
+  "$PKG_ROOT/lib/systemd/system/nls-vip-refresh.service"
+install -D -m 0644 "$ROOT_DIR/lib/systemd/system/nls-vip-refresh.timer" \
+  "$PKG_ROOT/lib/systemd/system/nls-vip-refresh.timer"
 
 cat > "$PKG_ROOT/DEBIAN/control" <<CONTROL
 Package: nls-netos-frr
@@ -50,8 +56,10 @@ if command -v systemctl >/dev/null 2>&1; then
   # unless nls_service.service_enabled is explicitly true.
   if systemctl is-system-running --quiet; then
     systemctl enable --now nls-keygen.service
+    systemctl enable --now nls-vip-refresh.timer
   else
     systemctl enable nls-keygen.service || true
+    systemctl enable nls-vip-refresh.timer || true
   fi
 fi
 exit 0
