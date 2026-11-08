@@ -123,7 +123,7 @@ def nls_is_enabled() -> bool:
     try:
         with STATUS_FILE.open("r", encoding="utf-8") as stream:
             status = json.load(stream)
-    except FileNotFoundError:
+    except (OSError, json.JSONDecodeError):
         return False
     if not isinstance(status, dict):
         return False
