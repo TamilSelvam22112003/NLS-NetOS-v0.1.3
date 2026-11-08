@@ -9,7 +9,8 @@ readonly CA_ROOT="${DATA_ROOT}/nls-router-ca"
 readonly HOME_CA_DIR="${CA_ROOT}/home-ca"
 readonly ISP_CA_DIR="${CA_ROOT}/isp-ca"
 readonly HOME_CA_CERT="${HOME_CA_DIR}/root-ca.crt"
-readonly HOME_CA_METADATA="${HOME_CA_DIR}/home-ca-metadata.json"
+readonly HOME_CA_METADATA="${HOME_CA_DIR}/root-ca-metadata.json"
+readonly LEGACY_HOME_CA_METADATA="${HOME_CA_DIR}/home-ca-metadata.json"
 readonly KEYGEN="/usr/lib/nls-netos/generate-keys.sh"
 
 log() { printf '[nls-boot-init] %s\n' "$*"; }
@@ -55,13 +56,13 @@ fi
 install -d -o root -g root -m 0700 "$CA_ROOT" "$HOME_CA_DIR" "$ISP_CA_DIR"
 
 # Create Home CA metadata once; on later boots refresh certificate-derived fields.
-python3 - "$HOME_CA_CERT" "$HOME_CA_METADATA" <<'PY'
+python3 - "$HOME_CA_CERT" "$HOME_CA_METADATA" "$LEGACY_HOME_CA_METADATA" <<'PY'
 import json
 import os
 import sys
 from datetime import datetime, timezone
 
-cert_path, metadata_path = sys.argv[1:3]
+cert_path, metadata_path, legacy_metadata_path = sys.argv[1:4]
 now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 try:
@@ -70,7 +71,17 @@ try:
     if not isinstance(metadata, dict):
         raise ValueError("metadata root must be a JSON object")
 except FileNotFoundError:
-    metadata = {
+    # Migrate the former filename without discarding existing CA metadata.
+    if os.path.isfile(legacy_metadata_path):
+        try:
+            with open(legacy_metadata_path, "r", encoding="utf-8") as stream:
+                metadata = json.load(stream)
+            if not isinstance(metadata, dict):
+                raise ValueError("legacy metadata root must be a JSON object")
+        except (OSError, json.JSONDecodeError, ValueError) as exc:
+            raise SystemExit(f"Cannot safely migrate legacy Home CA metadata: {exc}")
+    else:
+        metadata = {
         "schema_version": 1,
         "ca_id": "HOME-CA-001",
         "ca_type": "HOME",
@@ -91,7 +102,7 @@ except FileNotFoundError:
             "identity_verified": False
         },
         "management": {"added_by": "NLS-NetOS boot initialization"}
-    }
+        }
 except (OSError, json.JSONDecodeError, ValueError) as exc:
     raise SystemExit(f"Cannot safely read existing Home CA metadata: {exc}")
 
@@ -238,6 +249,12 @@ PY
 
 chown root:root "$HOME_CA_METADATA"
 chmod 0600 "$HOME_CA_METADATA"
+
+# Generate or preserve the time-bound Home Router-CA virtual IPv6 identifier.
+VIP_GENERATOR="/usr/lib/nls-netos/generate-router-ca-vip.py"
+[[ -x "$VIP_GENERATOR" ]] || die "Router-CA vIP generator not installed: $VIP_GENERATOR"
+"$VIP_GENERATOR"
+
 log "NLS boot initialization completed"
 log "Crypto directory: $CRYPTO_ROOT"
 log "Router CA directory: $CA_ROOT"
