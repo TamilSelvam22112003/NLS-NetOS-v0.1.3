@@ -32,7 +32,7 @@ jobs:
             --key-output "$TEST_ROOT/crypto/sha-512/r-ca-vip.key" \
             --record-output "$TEST_ROOT/home-ca-vip.json"
           VIP="$(sudo cat "$TEST_ROOT/crypto/sha-512/r-ca-vip.key")"
-          sudo python3 -c 'import ipaddress,sys; a=ipaddress.IPv6Address(sys.argv[1]); assert a in ipaddress.IPv6Network("fc00::/7")' "$VIP"
+          sudo python3 -c 'import ipaddress,sys; a=ipaddress.IPv6Address(sys.argv[1]); assert a in ipaddress.IPv6Network("fd00::/8")' "$VIP"
           test "$(sudo stat -c %a "$TEST_ROOT/crypto/sha-512/r-ca-vip.key")" = 600
           sudo python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["algorithm"]=="SHA-512" and d["validity_seconds"]==86400 and d["issued_at"] and d["expires_at"] and d["nonce_hex"]' "$TEST_ROOT/home-ca-vip.json"
           sudo python3 scripts/generate-router-ca-vip.py \
