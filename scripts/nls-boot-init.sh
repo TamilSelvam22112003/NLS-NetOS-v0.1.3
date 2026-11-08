@@ -3,8 +3,9 @@ set -Eeuo pipefail
 umask 077
 
 readonly STATUS_FILE="/var/lib/nls-netos/system-status.json"
-readonly CRYPTO_ROOT="/var/lib/nls-netos/crypto"
-readonly CA_ROOT="${CRYPTO_ROOT}/nls-router-ca"
+readonly DATA_ROOT="/var/lib/nls-netos"
+readonly CRYPTO_ROOT="${DATA_ROOT}/crypto"
+readonly CA_ROOT="${DATA_ROOT}/nls-router-ca"
 readonly HOME_CA_DIR="${CA_ROOT}/home-ca"
 readonly ISP_CA_DIR="${CA_ROOT}/isp-ca"
 readonly HOME_CA_CERT="${HOME_CA_DIR}/root-ca.crt"
@@ -17,8 +18,7 @@ die() { log "ERROR: $*" >&2; exit 1; }
 [[ ${EUID} -eq 0 ]] || die "must run as root"
 command -v python3 >/dev/null 2>&1 || die "python3 is required"
 
-# The status file is the sole activation gate. Unknown, missing, malformed,
-# or false values must not trigger NLS key/CA initialization.
+# Proceed only when system-status.json explicitly enables NLS.
 if [[ ! -f "$STATUS_FILE" ]]; then
     log "Status file not found; NLS initialization skipped"
     exit 0
@@ -34,8 +34,12 @@ try:
 except (OSError, json.JSONDecodeError):
     sys.exit(2)
 
-enabled = status.get("nls_service", {}).get("service_enabled")
-sys.exit(0 if enabled is True else 1)
+if not isinstance(status, dict):
+    sys.exit(2)
+service = status.get("nls_service")
+if not isinstance(service, dict):
+    sys.exit(1)
+sys.exit(0 if service.get("service_enabled") is True else 1)
 PY
 then
     log "NLS is not explicitly enabled in system-status.json; initialization skipped"
@@ -44,14 +48,13 @@ fi
 
 [[ -x "$KEYGEN" ]] || die "key-generation script not installed: $KEYGEN"
 
-# Generate/validate the existing per-machine AES-256 and RSA-2048 keys.
+# Generate or validate the existing per-machine AES-256 and RSA-2048 keys.
 "$KEYGEN"
 
-# Create only the two CA directories requested for this boot operation.
+# CA data is a sibling of crypto/, not a child of crypto/.
 install -d -o root -g root -m 0700 "$CA_ROOT" "$HOME_CA_DIR" "$ISP_CA_DIR"
 
-# Create the Home CA metadata file once, then refresh certificate-derived
-# fields on subsequent boots without overwriting unrelated administrator data.
+# Create Home CA metadata once; on later boots refresh certificate-derived fields.
 python3 - "$HOME_CA_CERT" "$HOME_CA_METADATA" <<'PY'
 import json
 import os
@@ -158,8 +161,7 @@ if os.path.isfile(cert_path):
 
         try:
             basic = cert.extensions.get_extension_for_class(x509.BasicConstraints).value
-            is_ca = basic.ca
-            path_length = basic.path_length
+            is_ca, path_length = basic.ca, basic.path_length
         except x509.ExtensionNotFound:
             is_ca, path_length = None, None
 
@@ -222,8 +224,7 @@ if not certificate["present"]:
     trust["trust_status"] = "PENDING"
     trust["enabled"] = False
 else:
-    # Presence and parsed fields do not establish trust. Verification remains
-    # pending until chain, policy, identity, and revocation checks are implemented.
+    # Parsing a certificate does not establish trust.
     trust.setdefault("trust_status", "PENDING")
     trust.setdefault("enabled", False)
 
@@ -239,5 +240,6 @@ chown root:root "$HOME_CA_METADATA"
 chmod 0600 "$HOME_CA_METADATA"
 log "NLS boot initialization completed"
 log "Crypto directory: $CRYPTO_ROOT"
+log "Router CA directory: $CA_ROOT"
 log "Home CA metadata: $HOME_CA_METADATA"
 log "ISP CA directory: $ISP_CA_DIR"
