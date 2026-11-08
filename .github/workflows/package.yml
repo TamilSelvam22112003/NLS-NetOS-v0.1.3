@@ -33,7 +33,10 @@ jobs:
           dpkg-deb --contents "$DEB" | grep -E 'usr/lib/frr/(zebra|ospfd|ospf6d)'
           dpkg-deb --contents "$DEB" | grep -E 'lib/systemd/system/frr.service'
           dpkg-deb --contents "$DEB" | grep -E 'usr/lib/nls-netos/generate-keys.sh'
+          dpkg-deb --contents "$DEB" | grep -E 'usr/lib/nls-netos/derive-router-ca-vip.py'
           dpkg-deb --contents "$DEB" | grep -E 'lib/systemd/system/nls-keygen.service'
+          dpkg-deb --contents "$DEB" | grep -E 'lib/systemd/system/nls-vip-refresh.service'
+          dpkg-deb --contents "$DEB" | grep -E 'lib/systemd/system/nls-vip-refresh.timer'
           dpkg-deb --field "$DEB" Depends | grep -w openssl
 
       - name: Install package in a clean Ubuntu 24.04 container
@@ -65,6 +68,9 @@ jobs:
               test -f /lib/systemd/system/frr.service
               test -x /usr/lib/nls-netos/generate-keys.sh
               test -f /lib/systemd/system/nls-keygen.service
+              test -x /usr/lib/nls-netos/derive-router-ca-vip.py
+              test -f /lib/systemd/system/nls-vip-refresh.service
+              test -f /lib/systemd/system/nls-vip-refresh.timer
               dpkg-query -W openssl
             '
 
