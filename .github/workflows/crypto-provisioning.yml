@@ -54,6 +54,8 @@ jobs:
         run: |
           sudo install -D -m 0700 scripts/generate-keys.sh /usr/lib/nls-netos/generate-keys.sh
           sudo install -D -m 0700 scripts/nls-boot-init.sh /usr/lib/nls-netos/nls-boot-init.sh
+          sudo install -D -m 0700 scripts/home-ca-vip.py /usr/lib/nls-netos/home-ca-vip.py
+          test -x /usr/lib/nls-netos/home-ca-vip.py
           sudo systemd-analyze verify lib/systemd/system/nls-keygen.service
           grep -q 'ExecStart=/usr/lib/nls-netos/nls-boot-init.sh' lib/systemd/system/nls-keygen.service
           grep -q 'nls_service' scripts/nls-boot-init.sh
