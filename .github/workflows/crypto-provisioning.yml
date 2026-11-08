@@ -70,6 +70,7 @@ jobs:
           {
             "schema_version": 1,
             "ca_id": "HOME-CA-CI",
+            "ca_type": "HOME",
             "ca_name": "NLS CI Root CA",
             "certificate": {
               "present": false,
