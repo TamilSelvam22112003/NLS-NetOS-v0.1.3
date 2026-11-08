@@ -76,6 +76,7 @@ The package installs:
 
 - `/usr/lib/nls-netos/generate-keys.sh`
 - `/usr/lib/nls-netos/nls-boot-init.sh`
+- `/usr/lib/nls-netos/generate-router-ca-vip.py`
 - `/lib/systemd/system/nls-keygen.service`
 
 Its post-installation script reloads systemd and enables the oneshot unit. The unit runs at boot after local filesystems are mounted and before `nls-router.service` if that service is installed. The initializer checks the status file each time it runs.
