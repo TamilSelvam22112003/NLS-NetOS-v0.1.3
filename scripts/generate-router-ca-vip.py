@@ -112,18 +112,18 @@ def generate(metadata: dict[str, Any], now: datetime, metadata_path: Path) -> tu
 
     # Domain-separated SHA-512 over canonical CA metadata, UTC issuance time,
     # and a fresh 256-bit CSPRNG nonce. Randomly select one of four 128-bit
-    # digest blocks, then place it in the locally-scoped ULA fc00::/7 space.
+    # digest blocks, then place it in the locally assigned ULA fd00::/8 space.
     digest = hashlib.sha512(DOMAIN + metadata_bytes + b"\x00" + issued_at.encode("ascii") + b"\x00" + nonce).digest()
     block_index = secrets.randbelow(4)
     address_bytes = bytearray(digest[block_index * 16:(block_index + 1) * 16])
-    address_bytes[0] = (address_bytes[0] & 0x03) | 0xFC
+    address_bytes[0] = 0xFD
     address = str(ipaddress.IPv6Address(bytes(address_bytes)))
 
     record = {
         "schema_version": 1,
         "identity_type": "HOME_ROUTER_CA_VIP",
         "address": address,
-        "address_scope": "ULA (fc00::/7); local/private routing only",
+        "address_scope": "Locally assigned ULA (fd00::/8); local/private routing only",
         "algorithm": "SHA-512",
         "derivation": "SHA-512(domain || canonical_CA_metadata || UTC_issued_at || CSPRNG_nonce); random 128-bit digest block; ULA prefix applied",
         "digest_block_index": block_index,
