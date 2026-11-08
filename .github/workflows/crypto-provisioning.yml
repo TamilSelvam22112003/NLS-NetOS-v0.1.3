@@ -53,7 +53,7 @@ jobs:
         run: |
           sudo install -D -m 0700 scripts/generate-keys.sh /usr/lib/nls-netos/generate-keys.sh
           sudo install -D -m 0700 scripts/nls-boot-init.sh /usr/lib/nls-netos/nls-boot-init.sh
-          systemd-analyze verify lib/systemd/system/nls-keygen.service
+          sudo systemd-analyze verify lib/systemd/system/nls-keygen.service
           grep -q 'ExecStart=/usr/lib/nls-netos/nls-boot-init.sh' lib/systemd/system/nls-keygen.service
           grep -q 'nls_service' scripts/nls-boot-init.sh
           grep -q 'service_enabled' scripts/nls-boot-init.sh
