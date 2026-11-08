@@ -19,6 +19,9 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Run Router-CA VIP derivation unit tests
+        run: python3 -m unittest discover -s tests -p 'test_router_ca_vip.py' -v
+
       - name: Build FRRouting
         run: sudo ./scripts/build-frr.sh
 
