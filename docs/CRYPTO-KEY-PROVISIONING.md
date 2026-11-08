@@ -57,6 +57,7 @@ If the status file is missing, invalid, or the value is false/null, initializati
 2. Creates `/var/lib/nls-netos/nls-router-ca/home-ca/` and `/var/lib/nls-netos/nls-router-ca/isp-ca/`.
 3. Creates `home-ca-metadata.json` if absent.
 4. If `home-ca/root-ca.crt` exists, reads its X.509 certificate fields into the metadata file. If no certificate exists, certificate fields remain null and trust remains PENDING.
+5. Invokes `generate-router-ca-vip.py`. It creates a time-bound SHA-512-derived candidate IPv6 identifier only when a parsed CA certificate and fingerprint are present. It reuses an unexpired identifier for an unchanged metadata snapshot.
 
 The metadata inspector does not download certificates, contact a CA endpoint, or mark a certificate trusted. Certificate presence and parsing alone do not establish trust; chain, identity, policy, and revocation validation are separate operations.
 
