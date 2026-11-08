@@ -62,7 +62,7 @@ If the status file is missing, invalid, or the value is false/null, initializati
 4. If `home-ca/root-ca.crt` exists, reads its X.509 certificate fields into the metadata file. If no certificate exists, certificate fields remain null and trust remains PENDING.
 5. Runs `generate-router-ca-vip.py` to derive a time-bound candidate IPv6 identifier from canonical CA metadata, a UTC timestamp, and a fresh 256-bit nonce. The candidate is marked `PENDING_TRUST` until trust is independently validated.
 
-The current repository uses `root-ca-metadata.json` as its Home/Root CA metadata source. The example JSON in the development request matches `system-status.json`; that health report is not used as CA identity input. The generated vIP data is stored as JSON in `home-ca-vip.json`, not in a `.py` file.
+The current repository uses `root-ca-metadata.json` as its Home/Root CA metadata source. The example JSON in the development request matches `system-status.json`; that health report is not used as CA identity input. On first boot after this update, an existing `home-ca-metadata.json` is migrated into `root-ca-metadata.json` without deleting the legacy file. The generated vIP data is stored as JSON in `home-ca-vip.json`, not in a `.py` file.
 
 The metadata inspector does not download certificates, contact a CA endpoint, or mark a certificate trusted. Certificate presence and parsing alone do not establish trust; chain, identity, policy, and revocation validation are separate operations.
 
