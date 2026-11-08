@@ -33,6 +33,7 @@ jobs:
           dpkg-deb --contents "$DEB" | grep -E 'usr/lib/frr/(zebra|ospfd|ospf6d)'
           dpkg-deb --contents "$DEB" | grep -E 'lib/systemd/system/frr.service'
           dpkg-deb --contents "$DEB" | grep -E 'usr/lib/nls-netos/generate-keys.sh'
+          dpkg-deb --contents "$DEB" | grep -E 'usr/lib/nls-netos/generate-router-ca-vip.py'
           dpkg-deb --contents "$DEB" | grep -E 'lib/systemd/system/nls-keygen.service'
           dpkg-deb --field "$DEB" Depends | grep -w openssl
 
@@ -64,6 +65,7 @@ jobs:
               getent group frrvty
               test -f /lib/systemd/system/frr.service
               test -x /usr/lib/nls-netos/generate-keys.sh
+              test -x /usr/lib/nls-netos/generate-router-ca-vip.py
               test -f /lib/systemd/system/nls-keygen.service
               dpkg-query -W openssl
             '

@@ -13,6 +13,8 @@ NLS-NetOS provisions per-machine cryptographic material and Router-CA metadata o
 | RSA-2048 public key | `/var/lib/nls-netos/crypto/RSA-2048/public_key.pem` | root:root, 0644 |
 | Home CA metadata | `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-metadata.json` | root:root, 0600 |
 | Home CA certificate (when provisioned) | `/var/lib/nls-netos/nls-router-ca/home-ca/root-ca.crt` | public certificate |
+| Router-CA SHA-512 digest | `/var/lib/nls-netos/crypto/sha-512/r-ca-vip.key` | root:root, 0600 |
+| Home CA VIP lifecycle record | `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-vip.json` | root:root, 0600 |
 | ISP CA directory | `/var/lib/nls-netos/nls-router-ca/isp-ca/` | root-owned directory |
 
 Router-CA data is a sibling of `crypto/`, not a child of it:
@@ -73,6 +75,7 @@ The package installs:
 
 - `/usr/lib/nls-netos/generate-keys.sh`
 - `/usr/lib/nls-netos/nls-boot-init.sh`
+- `/usr/lib/nls-netos/generate-router-ca-vip.py`
 - `/lib/systemd/system/nls-keygen.service`
 
 Its post-installation script reloads systemd and enables the oneshot unit. The unit runs at boot after local filesystems are mounted and before `nls-router.service` if that service is installed. The initializer checks the status file each time it runs.
@@ -86,6 +89,7 @@ sudo apt-get update
 sudo apt-get install -y openssl python3-cryptography
 sudo install -D -m 0700 scripts/generate-keys.sh /usr/lib/nls-netos/generate-keys.sh
 sudo install -D -m 0700 scripts/nls-boot-init.sh /usr/lib/nls-netos/nls-boot-init.sh
+sudo install -D -m 0700 scripts/generate-router-ca-vip.py /usr/lib/nls-netos/generate-router-ca-vip.py
 sudo install -D -m 0644 lib/systemd/system/nls-keygen.service /lib/systemd/system/nls-keygen.service
 sudo systemctl daemon-reload
 sudo systemctl enable nls-keygen.service
@@ -96,9 +100,21 @@ Set `nls_service.service_enabled` to JSON boolean `true` in `/var/lib/nls-netos/
 ```bash
 sudo systemctl status nls-keygen.service
 sudo journalctl -u nls-keygen.service -b --no-pager
-sudo find /var/lib/nls-netos -maxdepth 4 -type f -printf '%M %u:%g %p\\n'
+sudo find /var/lib/nls-netos -maxdepth 4 -type f -printf '%M %u:%g %p\
+'
 ```
 
 ## Cryptographic protocol note
 
 The persistent AES key generated here is local machine material, not a fleet-wide traffic key. NLS data-plane traffic should use unique session keys derived through the protocol's authenticated key-establishment procedure and AES-256-GCM with correct nonce management. This provisioning script does not implement key exchange, certificate issuance, certificate trust validation, rotation, revocation, or hardware-backed key storage.
+
+
+## Router-CA VIP derivation and lifecycle
+
+During enabled boot initialization, `generate-router-ca-vip.py` reads the stable identity fields from `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-metadata.json` (excluding volatile inspection timestamps such as `management.last_inspected`), the current UTC timestamp, and a fresh 256-bit cryptographically secure random nonce. It computes a domain-separated SHA-512 digest, divides the digest into four 128-bit blocks, selects one block with a CSPRNG, and maps the result into the IPv6 Unique Local Address range (`fd00::/8`).
+
+The full 512-bit digest (128 hexadecimal characters) is written to `/var/lib/nls-netos/crypto/sha-512/r-ca-vip.key`. The selected 128-bit block is formatted as the IPv6 VIP and stored in `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-vip.json` with its lifecycle record. The default lifetime is 24 hours. An unexpired address is preserved across reboots while the CA metadata remains unchanged; an expired address or changed metadata causes regeneration. Both files are root-owned and mode `0600`.
+
+Despite its `.key` suffix, `r-ca-vip.key` contains a SHA-512 digest, not secret key material. The companion JSON record contains the IPv6 identifier, issue/expiry timestamps, the metadata SHA-256 fingerprint, derivation details, and nonce. The address is ULA-scoped for private/local routing and is not globally routable. The host UTC clock must be correct (preferably NTP-synchronized).
+
+This VIP does not authenticate a Router-CA, establish certificate trust, or replace a signed certificate. It is also distinct from the protocol per-handshake vIP derivation; do not use this persistent local alias as a substitute for that handshake mechanism.
