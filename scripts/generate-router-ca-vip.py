@@ -36,6 +36,21 @@ def canonical_json(value: Any) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
 
 
+def stable_identity_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
+    """Drop inspection-only fields that change on every boot, not CA identity."""
+    stable = dict(metadata)
+    management = stable.get("management")
+    if isinstance(management, dict):
+        management = dict(management)
+        for volatile in ("last_inspected", "last_updated", "updated_at"):
+            management.pop(volatile, None)
+        if management:
+            stable["management"] = management
+        else:
+            stable.pop("management", None)
+    return stable
+
+
 def atomic_write(path: Path, data: bytes, mode: int = 0o600) -> None:
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(path.parent, 0o700)
@@ -89,7 +104,7 @@ def existing_unexpired(key_path: Path, record_path: Path, metadata_sha256: str, 
 
 
 def generate(metadata: dict[str, Any], now: datetime, metadata_path: Path) -> tuple[str, dict[str, Any]]:
-    metadata_bytes = canonical_json(metadata)
+    metadata_bytes = canonical_json(stable_identity_metadata(metadata))
     metadata_sha256 = hashlib.sha256(metadata_bytes).hexdigest()
     issued_at = iso_utc(now)
     expires_at = iso_utc(now + timedelta(hours=24))
@@ -139,7 +154,7 @@ def main() -> int:
 
     try:
         metadata = load_metadata(args.metadata)
-        metadata_sha256 = hashlib.sha256(canonical_json(metadata)).hexdigest()
+        metadata_sha256 = hashlib.sha256(canonical_json(stable_identity_metadata(metadata))).hexdigest()
         now = utc_now()
         if not args.force:
             current = existing_unexpired(args.key_output, args.record_output, metadata_sha256, now)
