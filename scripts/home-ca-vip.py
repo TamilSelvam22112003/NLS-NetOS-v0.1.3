@@ -67,7 +67,7 @@ def derive(metadata: dict[str, Any], now: datetime) -> tuple[str, str, int, date
     # bits. This yields a syntactically valid ULA, not a globally routable IP.
     address_hex = "fd" + digest[:30]
     address = ipaddress.IPv6Address(int(address_hex, 16))
-    return digest, str(address), bucket_id, bucket_start, expires_at
+    return digest, address.exploded, bucket_id, bucket_start, expires_at
 
 
 def atomic_write(path: Path, content: str, mode: int = 0o600) -> None:
