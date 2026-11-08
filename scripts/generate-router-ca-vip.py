@@ -88,7 +88,7 @@ def existing_unexpired(key_path: Path, record_path: Path, metadata_sha256: str, 
     return None
 
 
-def generate(metadata: dict[str, Any], now: datetime) -> tuple[str, dict[str, Any]]:
+def generate(metadata: dict[str, Any], now: datetime, metadata_path: Path) -> tuple[str, dict[str, Any]]:
     metadata_bytes = canonical_json(metadata)
     metadata_sha256 = hashlib.sha256(metadata_bytes).hexdigest()
     issued_at = iso_utc(now)
@@ -112,7 +112,7 @@ def generate(metadata: dict[str, Any], now: datetime) -> tuple[str, dict[str, An
         "algorithm": "SHA-512",
         "derivation": "SHA-512(domain || canonical_CA_metadata || UTC_issued_at || CSPRNG_nonce); random 128-bit digest block; ULA prefix applied",
         "digest_block_index": block_index,
-        "metadata_source": str(DEFAULT_METADATA),
+        "metadata_source": str(metadata_path),
         "metadata_sha256": metadata_sha256,
         "nonce_hex": nonce.hex(),
         "issued_at": issued_at,
@@ -147,7 +147,7 @@ def main() -> int:
                 print(f"Existing unexpired Router-CA VIP preserved: {current}")
                 return 0
 
-        address, record = generate(metadata, now)
+        address, record = generate(metadata, now, args.metadata)
         # Persist the companion record first. If the second write fails, the
         # next invocation will detect the incomplete pair and safely replace it.
         atomic_write(args.record_output, (json.dumps(record, indent=2) + "\n").encode("utf-8"))
