@@ -87,13 +87,15 @@ def existing_unexpired(key_path: Path, record_path: Path, metadata_sha256: str, 
         if key_path.is_symlink() or record_path.is_symlink():
             raise ValueError("VIP output path must not be a symbolic link")
         record = json.loads(record_path.read_text(encoding="utf-8"))
-        address = key_path.read_text(encoding="ascii").strip()
-        parsed = ipaddress.IPv6Address(address)
+        digest_hex = key_path.read_text(encoding="ascii").strip()
+        if len(digest_hex) != 128 or any(ch not in "0123456789abcdef" for ch in digest_hex):
+            return None
+        parsed = ipaddress.IPv6Address(record["address"])
         expiry = datetime.fromisoformat(record["expires_at"].replace("Z", "+00:00"))
         if (record.get("metadata_sha256") == metadata_sha256
                 and record.get("algorithm") == "SHA-512"
-                and record.get("address") == str(parsed)
-                and parsed in ipaddress.IPv6Network("fc00::/7")
+                and record.get("sha512_digest_hex") == digest_hex
+                and parsed in ipaddress.IPv6Network("fd00::/8")
                 and expiry > now):
             return str(parsed)
     except FileNotFoundError:
@@ -123,6 +125,7 @@ def generate(metadata: dict[str, Any], now: datetime, metadata_path: Path) -> tu
         "schema_version": 1,
         "identity_type": "HOME_ROUTER_CA_VIP",
         "address": address,
+        "sha512_digest_hex": digest.hex(),
         "address_scope": "Locally assigned ULA (fd00::/8); local/private routing only",
         "algorithm": "SHA-512",
         "derivation": "SHA-512(domain || canonical_CA_metadata || UTC_issued_at || CSPRNG_nonce); random 128-bit digest block; ULA prefix applied",
@@ -166,11 +169,11 @@ def main() -> int:
         # Persist the companion record first. If the second write fails, the
         # next invocation will detect the incomplete pair and safely replace it.
         atomic_write(args.record_output, (json.dumps(record, indent=2) + "\n").encode("utf-8"))
-        atomic_write(args.key_output, (address + "\n").encode("ascii"))
+        atomic_write(args.key_output, (record["sha512_digest_hex"] + "\n").encode("ascii"))
         print(f"Router-CA VIP: {address}")
         print(f"Generated: {record['issued_at']}")
         print(f"Expires:   {record['expires_at']}")
-        print(f"Address file: {args.key_output}")
+        print(f"SHA-512 digest file: {args.key_output}")
         print(f"Metadata:     {args.record_output}")
         return 0
     except (OSError, ValueError, json.JSONDecodeError) as exc:
