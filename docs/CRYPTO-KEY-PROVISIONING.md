@@ -2,7 +2,7 @@
 
 ## Purpose
 
-NLS-NetOS provisions per-machine key material on the target Ubuntu/Debian system. The repository contains only generation code and systemd units. Generated keys and machine-specific CA metadata are created on the target system; they are never committed to Git or included in a distributable package.
+NLS-NetOS provisions per-machine cryptographic material and Router-CA metadata on the target Ubuntu/Debian system. Generated keys and machine-specific CA metadata are created on the target system; they are never committed to Git or included in a distributable package.
 
 ## Runtime storage
 
@@ -11,11 +11,27 @@ NLS-NetOS provisions per-machine key material on the target Ubuntu/Debian system
 | AES-256 raw key (32 bytes) | `/var/lib/nls-netos/crypto/aes-256/aes256.key` | root:root, 0600 |
 | RSA-2048 private key | `/var/lib/nls-netos/crypto/RSA-2048/private_key.pem` | root:root, 0600 |
 | RSA-2048 public key | `/var/lib/nls-netos/crypto/RSA-2048/public_key.pem` | root:root, 0644 |
-| Home CA metadata | `/var/lib/nls-netos/crypto/nls-router-ca/home-ca/home-ca-metadata.json` | root:root, 0600 |
-| Home CA certificate (when provisioned) | `/var/lib/nls-netos/crypto/nls-router-ca/home-ca/root-ca.crt` | public certificate |
-| ISP CA directory | `/var/lib/nls-netos/crypto/nls-router-ca/isp-ca/` | root-owned directory |
+| Home CA metadata | `/var/lib/nls-netos/nls-router-ca/home-ca/home-ca-metadata.json` | root:root, 0600 |
+| Home CA certificate (when provisioned) | `/var/lib/nls-netos/nls-router-ca/home-ca/root-ca.crt` | public certificate |
+| ISP CA directory | `/var/lib/nls-netos/nls-router-ca/isp-ca/` | root-owned directory |
 
-The key-generation script validates existing keys and preserves them. It fails closed if an existing AES file has the wrong size, an RSA pair is incomplete, or the RSA public key does not match the private key. It does not silently rotate identity material.
+Router-CA data is a sibling of `crypto/`, not a child of it:
+
+```text
+/var/lib/nls-netos/
+├── crypto/
+│   ├── aes-256/
+│   │   └── aes256.key
+│   └── RSA-2048/
+│       ├── private_key.pem
+│       └── public_key.pem
+└── nls-router-ca/
+    ├── home-ca/
+    │   └── home-ca-metadata.json
+    └── isp-ca/
+```
+
+The key-generation script validates existing keys and preserves them. It does not silently rotate identity material.
 
 ## Boot-time activation gate
 
@@ -35,8 +51,8 @@ It proceeds only when this exact JSON value is boolean true:
 
 If the status file is missing, invalid, or the value is false/null, initialization is skipped. When enabled, the initializer:
 
-1. Runs the existing per-machine AES-256 and RSA-2048 generation/validation script.
-2. Creates `crypto/nls-router-ca/home-ca/` and `crypto/nls-router-ca/isp-ca/`.
+1. Runs the existing per-machine AES-256 and RSA-2048 generation/validation script under `/var/lib/nls-netos/crypto/`.
+2. Creates `/var/lib/nls-netos/nls-router-ca/home-ca/` and `/var/lib/nls-netos/nls-router-ca/isp-ca/`.
 3. Creates `home-ca-metadata.json` if absent.
 4. If `home-ca/root-ca.crt` exists, reads its X.509 certificate fields into the metadata file. If no certificate exists, certificate fields remain null and trust remains PENDING.
 
@@ -80,7 +96,7 @@ Set `nls_service.service_enabled` to JSON boolean `true` in `/var/lib/nls-netos/
 ```bash
 sudo systemctl status nls-keygen.service
 sudo journalctl -u nls-keygen.service -b --no-pager
-sudo find /var/lib/nls-netos/crypto -maxdepth 4 -type f -printf '%M %u:%g %p\\n'
+sudo find /var/lib/nls-netos -maxdepth 4 -type f -printf '%M %u:%g %p\\n'
 ```
 
 ## Cryptographic protocol note
