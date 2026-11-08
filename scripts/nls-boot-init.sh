@@ -238,6 +238,12 @@ PY
 
 chown root:root "$HOME_CA_METADATA"
 chmod 0600 "$HOME_CA_METADATA"
+
+# Generate or preserve the time-bound Home Router-CA virtual IPv6 identifier.
+VIP_GENERATOR="/usr/lib/nls-netos/generate-router-ca-vip.py"
+[[ -x "$VIP_GENERATOR" ]] || die "Router-CA vIP generator not installed: $VIP_GENERATOR"
+"$VIP_GENERATOR"
+
 log "NLS boot initialization completed"
 log "Crypto directory: $CRYPTO_ROOT"
 log "Router CA directory: $CA_ROOT"
