@@ -24,6 +24,7 @@ jobs:
         run: |
           bash -n scripts/generate-keys.sh
           bash -n scripts/nls-boot-init.sh
+          python3 -m py_compile scripts/home-ca-vip.py
           shellcheck scripts/generate-keys.sh scripts/nls-boot-init.sh
 
       - name: Test key generation, permissions, and idempotency in temporary path
@@ -57,6 +58,10 @@ jobs:
           grep -q 'ExecStart=/usr/lib/nls-netos/nls-boot-init.sh' lib/systemd/system/nls-keygen.service
           grep -q 'nls_service' scripts/nls-boot-init.sh
           grep -q 'service_enabled' scripts/nls-boot-init.sh
+
+      - name: Test Router-CA VIP derivation and expiry
+        run: |
+          python3 -m unittest discover -s tests -p 'test_router_ca_vip.py' -v
 
       - name: Ensure no generated keys are tracked
         run: |
