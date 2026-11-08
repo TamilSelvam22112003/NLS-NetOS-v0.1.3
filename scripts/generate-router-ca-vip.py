@@ -126,6 +126,23 @@ def main() -> int:
         print("[nls-vip] ERROR: CA metadata must be a JSON object", file=sys.stderr)
         return 1
 
+    # Reject a system-status health report or arbitrary JSON as CA identity input.
+    if (
+        metadata.get("schema_version") != 1
+        or not isinstance(metadata.get("ca_id"), str)
+        or not metadata.get("ca_id").strip()
+        or not isinstance(metadata.get("ca_type"), str)
+        or not metadata.get("ca_type").strip()
+        or not isinstance(metadata.get("certificate"), dict)
+        or not isinstance(metadata.get("trust"), dict)
+    ):
+        print(
+            "[nls-vip] ERROR: expected Root CA metadata schema "
+            "(schema_version, ca_id, ca_type, certificate, trust)",
+            file=sys.stderr,
+        )
+        return 1
+
     try:
         ttl_hours = int(os.environ.get("NLS_CA_VIP_TTL_HOURS", DEFAULT_TTL_HOURS))
     except ValueError:
