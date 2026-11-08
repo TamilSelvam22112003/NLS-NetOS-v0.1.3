@@ -31,7 +31,8 @@ Router-CA data is a sibling of `crypto/`, not a child of it:
 │       └── r-ca-vip.key
 └── nls-router-ca/
     ├── home-ca/
-    │   └── home-ca-metadata.json
+    │   ├── home-ca-metadata.json
+    │   └── home-ca-vip.json
     └── isp-ca/
 ```
 
