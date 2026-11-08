@@ -24,6 +24,7 @@ jobs:
         run: |
           bash -n scripts/generate-keys.sh
           bash -n scripts/nls-boot-init.sh
+          python3 -m py_compile scripts/generate-router-ca-vip.py
           shellcheck scripts/generate-keys.sh scripts/nls-boot-init.sh
 
       - name: Test key generation, permissions, and idempotency in temporary path
