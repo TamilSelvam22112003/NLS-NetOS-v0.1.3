@@ -39,7 +39,7 @@ The key-generation script validates existing keys and preserves them. It does no
 
 The canonical source is the runtime metadata file `home-ca-metadata.json` (the current implementation does not use a `root-ca-metadata.json` filename). The generator canonicalizes the complete JSON object and computes SHA-512 over a domain separator, the canonical metadata bytes, and the current UTC five-minute bucket. It does not randomly sample the digest: deterministic derivation is required so two systems with identical metadata and synchronized clocks can reproduce the same address. The first 120 digest-derived bits are placed in the RFC 4193 ULA `fd00::/8` space.
 
-`r-ca-vip.key` contains the 512-bit hexadecimal SHA-512 derivation digest; despite the `.key` suffix, this is not a secret or an encryption/authentication key. The generated `home-ca-vip.py` module contains the IPv6 address, digest, metadata fingerprint, generation time, bucket start, and expiry. `management.last_inspected` is excluded from canonicalization because it is volatile inspection telemetry; other metadata fields participate. The five-minute address is a locator, not proof of identity or trust. Do not use it as an authentication credential. Cross-router derivation requires identical CA metadata and synchronized UTC clocks. This implementation does not yet add the address to an interface or routing table.
+`r-ca-vip.key` contains the 512-bit hexadecimal SHA-512 derivation digest; despite the `.key` suffix, this is not a secret or an encryption/authentication key. The generated `home-ca-vip.py` module contains the IPv6 address, digest, metadata fingerprint, generation time, bucket start, and expiry. `management.last_inspected` is excluded from canonicalization because it is volatile inspection telemetry; other metadata fields participate. The five-minute address is a locator, not proof of identity or trust. Do not use it as an authentication credential. Cross-router derivation requires identical CA metadata and synchronized UTC clocks. This local Home-CA VIP is distinct from the NLS per-handshake/session vIP described by the protocol handshake specification; it does not replace that two-router, nonce-bound derivation. This implementation does not yet add the address to an interface or routing table.
 
 ## Boot-time activation gate
 
@@ -62,7 +62,7 @@ If the status file is missing, invalid, or the value is false/null, initializati
 1. Runs the existing per-machine AES-256 and RSA-2048 generation/validation script under `/var/lib/nls-netos/crypto/`.
 2. Creates `/var/lib/nls-netos/nls-router-ca/home-ca/` and `/var/lib/nls-netos/nls-router-ca/isp-ca/`.
 3. Creates `home-ca-metadata.json` if absent.
-4. If `home-ca/root-ca.crt` exists, reads its X.509 certificate fields into the metadata file. If no certificate exists, certificate fields remain null and trust remains PENDING.
+4. If `home-ca/root-ca.crt` exists, reads its X.509 certificate fields into the metadata file. If no certificate exists, certificate fields remain null and trust remains PENDING.\n5. Derives the time-bucketed Home-CA VIP, writes the SHA-512 digest and generated Python state module, and refreshes it periodically through `nls-vip-refresh.timer`.
 
 The metadata inspector does not download certificates, contact a CA endpoint, or mark a certificate trusted. Certificate presence and parsing alone do not establish trust; chain, identity, policy, and revocation validation are separate operations.
 
